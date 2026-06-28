@@ -14,8 +14,13 @@ app.use(express.json({ limit: '1mb' }));
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+// Prefer the process working directory in production (containers), fallback to repo layout in dev
 const repoRoot = process.cwd() || path.resolve(__dirname, '..');
 const indexPath = path.join(repoRoot, 'index.html');
+
+// Backend proxy configuration
+const BACKEND_URL = process.env.BACKEND_URL || 'https://api';
+const API_TOKEN = process.env.API_TOKEN || 'rnd_vXW4zr9ZaHtNo54STAfDHKIQqBdS';
 
 // Serve SPA at both / and /index.html
 app.get(['/', '/index.html'], (req, res) => res.sendFile(indexPath));
@@ -24,6 +29,35 @@ app.get(['/', '/index.html'], (req, res) => res.sendFile(indexPath));
 app.use(express.static(repoRoot));
 
 app.get('/healthz', (req, res) => res.json({ ok: true }));
+
+// Generic proxy to an external backend. Clients POST JSON to /api/proxy/<path>
+// and this server forwards the request body to `${BACKEND_URL}/<path>` with
+// the `Authorization: Bearer ${API_TOKEN}` header.
+app.post('/api/proxy/*', async (req, res) => {
+  try {
+    const proxyPath = req.params[0] || '';
+    const url = new URL(proxyPath, BACKEND_URL).toString();
+
+    const fetchOptions = {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'authorization': `Bearer ${API_TOKEN}`,
+      },
+      body: JSON.stringify(req.body),
+    };
+
+    const resp = await fetch(url, fetchOptions);
+    const data = await resp.text();
+
+    // Mirror status and content-type where possible
+    const contentType = resp.headers.get('content-type') || 'application/json';
+    res.status(resp.status).type(contentType).send(data);
+  } catch (err) {
+    console.error('proxy error', err);
+    res.status(502).json({ error: 'proxy_failure', detail: String(err) });
+  }
+});
 
 // ---- Minimal API stubs (so Fly can deploy even before wiring full game logic) ----
 app.post('/api/login', (req, res) => res.status(501).json({ error: 'Not implemented (backend API missing)' }));
