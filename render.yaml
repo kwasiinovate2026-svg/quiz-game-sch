@@ -11,6 +11,4 @@ services:
         value: production
       - key: PORT
         value: 3000
-      - key: BACKEND_URL
-        value: https://api
     healthCheckPath: /healthz
