@@ -56,37 +56,78 @@ export function buildLocalBackendResponse(action, body = {}) {
           displayName: safeBody.displayName || safeBody.name || 'Local Player',
         },
       };
-    case 'create':
+    case 'create': {
+      const settings = {
+        level: safeBody.settings?.level || 'JHS',
+        subject: safeBody.settings?.subject || 'All subjects',
+        perRound: safeBody.settings?.perRound || 200,
+        seconds: safeBody.settings?.seconds || 45,
+        rounds: safeBody.settings?.rounds || 3,
+        aiCount: safeBody.settings?.aiCount || 0,
+        aiDiff: safeBody.settings?.aiDiff || 'medium',
+      };
       return {
         ok: true,
-        roomId: 'local-room',
+        phase: 'lobby',
+        code: 'ABCD',
         hostId: 'local-user',
-        players: [{ id: 'local-user', displayName: safeBody.displayName || 'Local Player' }],
+        players: [{ id: 'local-user', name: safeBody.name || 'Local Player', displayName: safeBody.name || 'Local Player', connected: true }],
+        settings,
+        subjLabel: settings.subject,
+        serverNow: Date.now(),
       };
-    case 'join':
+    }
+    case 'join': {
+      const settings = {
+        level: safeBody.settings?.level || 'JHS',
+        subject: safeBody.settings?.subject || 'All subjects',
+        perRound: safeBody.settings?.perRound || 200,
+        seconds: safeBody.settings?.seconds || 45,
+        rounds: safeBody.settings?.rounds || 3,
+        aiCount: safeBody.settings?.aiCount || 0,
+        aiDiff: safeBody.settings?.aiDiff || 'medium',
+      };
       return {
         ok: true,
-        roomId: safeBody.roomId || 'local-room',
-        player: { id: 'local-user', displayName: safeBody.displayName || 'Local Player' },
+        phase: 'lobby',
+        code: (safeBody.code || 'ABCD').toUpperCase(),
+        hostId: 'local-user',
+        players: [{ id: 'local-user', name: safeBody.name || 'Local Player', displayName: safeBody.name || 'Local Player', connected: true }],
+        settings,
+        subjLabel: settings.subject,
+        serverNow: Date.now(),
       };
+    }
     case 'start':
       return {
         ok: true,
-        status: 'started',
-        round: 1,
+        phase: 'playing',
+        stage: 'answering',
+        round: 0,
+        qInRound: 0,
+        phase: 'playing',
+        settings: { level: 'JHS', subject: 'All subjects', perRound: 20, seconds: 45, rounds: 3, aiCount: 0, aiDiff: 'medium' },
+        players: [{ id: 'local-user', name: 'Local Player', displayName: 'Local Player', score: 0, connected: true }],
+        ownerId: 'local-user',
         question: {
           type: 'mcq',
           text: 'What is 2 + 2?',
           options: ['3', '4', '5', '6'],
           answerIndex: 1,
         },
+        subjLabel: 'All subjects',
+        serverNow: Date.now(),
       };
     case 'state':
       return {
         ok: true,
-        status: 'waiting',
-        round: 0,
-        players: [{ id: 'local-user', displayName: 'Local Player' }],
+        phase: 'lobby',
+        code: safeBody.code || 'ABCD',
+        hostId: 'local-user',
+        players: [{ id: 'local-user', name: 'Local Player', displayName: 'Local Player', connected: true }],
+        settings: { level: 'JHS', subject: 'All subjects', perRound: 200, seconds: 45, rounds: 3, aiCount: 0, aiDiff: 'medium' },
+        subjLabel: 'All subjects',
+        serverNow: Date.now(),
       };
     case 'answer':
       return {

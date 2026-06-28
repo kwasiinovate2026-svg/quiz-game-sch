@@ -18,3 +18,11 @@ test('builds a local fallback response for API actions', () => {
   assert.equal(buildLocalBackendResponse('league').ok, true);
   assert.equal(buildLocalBackendResponse('answer').correct, true);
 });
+
+test('builds a local create room response with a code', () => {
+  const result = buildLocalBackendResponse('create', { name: 'Alice', settings: { level: 'JHS', subject: 'All subjects' } });
+  assert.equal(result.ok, true);
+  assert.equal(result.code, 'ABCD');
+  assert.equal(result.phase, 'lobby');
+  assert.equal(result.players[0].displayName, 'Alice');
+});
