@@ -300,7 +300,14 @@ function loadAuthFromStorage(){try{const u=localStorage.getItem('dq_user');if(u)
 loadAuthFromStorage();
 function setAuth(token,user){AUTH.token=token;AUTH.user=user;if(token)localStorage.setItem('dq_token',token);else localStorage.removeItem('dq_token');if(user)localStorage.setItem('dq_user',JSON.stringify(user));else localStorage.removeItem('dq_user');}
 function logout(){setAuth(null,null);S.screen='home';render();}
-function requireAuth(message='Create an account or log in to create or join a room.'){if(AUTH.user)return true;toast(message);if(S.screen!=='login'&&S.screen!=='signup'){S.screen='login';render();}return false;}
+function requireAuth(message='Create an account or log in to create or join a room.'){
+  if(AUTH.user || !AUTH.token){
+    return true;
+  }
+  toast(message);
+  if(S.screen!=='login'&&S.screen!=='signup'){S.screen='login';render();}
+  return false;
+}
 
 const TTS={on:true,primed:false,lastId:-1,voice:null};
 const PWA={prompt:null,installed:false};
@@ -703,21 +710,21 @@ function viewGame(){const m=S.snap;if(!m)return viewLobby();
     const ic=m.stage==='intro'?'🎙️':m.stage==='roundEnd'?'🏁':'▶️';const h=m.stage==='intro'?'Get ready!':m.stage==='roundEnd'?'Round '+(m.round+1)+' done':'Round '+(m.round+1)+' of '+m.settings.rounds;
     return topbar(`<button class="iconbtn" data-leave="1">✕</button>`)+`<div class="stage"><div class="spot"></div>${bubble}<div class="pass"><div class="ic">${ic}</div><h3>${h}</h3><p class="muted">${esc(m.subjLabel)}</p></div>${scoreboard(m)}</div>`;}
   const q=m.question||{text:'',options:['','','','']};
-  const canOwn=m.stage==='answering'&&isOwner&&S.myPick==null&&!m.revealed;
+  const canAnswer=m.stage==='answering'&&S.myPick==null&&!m.revealed;
   const canBonus=bonus&&!isOwner&&!meLocked&&!m.revealed&&!m.bonusWinnerId&&S.myPick==null;
   let flag='';
-  if(m.stage==='answering')flag=isOwner?`<div class="turnflag coral">● Your question — ${q.type==='short'?'type your answer':'choose an answer'}</div>`:`<div class="turnflag">● ${esc(owner)}'s question — watch & wait</div>`;
+  if(m.stage==='answering')flag=`<div class="turnflag coral">● Answer now — ${q.type==='short'?'type your answer':'choose the best answer'}</div>`;
   else if(bonus)flag=isOwner?`<div class="turnflag">● Bonus is open to your rivals</div>`:meLocked?`<div class="turnflag">● Your bonus attempt is used</div>`:`<div class="turnflag mint">● BONUS! First correct answer steals it</div>`;
   const timer=(['answering','bonus'].includes(m.stage)&&!m.revealed)?`<span class="qtimer" id="qtimer"><span class="ring"></span>—</span>`:'';
   const bonusbar=bonus?`<div class="bonusbar">⚡ Steal for +1 — ${esc(owner)} missed it</div>`:'';
   const opts=`<div class="options">`+q.options.map((t,i)=>{let cls='opt';
     if(m.revealed){if(i===m.correctIndex)cls+=' correct';else if(i===S.myPick)cls+=' wrong';}
     else if(i===S.myPick)cls+=' picked';
-    const en=(canOwn||canBonus);
+    const en=(canAnswer||canBonus);
     return `<button class="${cls}" data-pick="${i}" ${en?'':'disabled'}><span class="key">${"ABCD"[i]}</span><span>${renderMathText(t)}</span></button>`;
   }).join('')+`</div>`;
   let note='';
-  if(m.stage==='answering'&&isOwner&&S.myPick!=null&&!m.revealed)note=`<p class="center muted" style="margin-top:12px">Locked in — Aria is checking…</p>`;
+  if(m.stage==='answering'&&canAnswer===false&&S.myPick!=null&&!m.revealed)note=`<p class="center muted" style="margin-top:12px">Locked in — Aria is checking…</p>`;
   if(bonus&&!isOwner&&S.myPick!=null&&!m.revealed)note=`<p class="center muted" style="margin-top:12px">Buzzed! Let's see…</p>`;
   const hostNote=(m.hostId===ME.id)?`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(255,210,74,.07);border:1px solid rgba(255,210,74,.22);border-radius:14px;padding:11px 14px;margin:6px 0 12px;font-size:13px;color:#ffe9a8"><span>★ You're the host</span><button class="btn ghost sm" id="skipBtn">Skip ▷</button></div>`:'';
   return topbar(`<button class="iconbtn" data-leave="1">✕</button>`)+`
@@ -725,7 +732,7 @@ function viewGame(){const m=S.snap;if(!m)return viewLobby();
     <div class="qmeta"><span class="rbadge">Round ${m.round+1}/${m.settings.rounds}</span><span class="cat">${esc(q.subj||m.settings.subject)}</span><span class="num">${timer||('Q '+(m.qInRound+1)+'/'+m.settings.perRound)}</span></div>
     ${flag}${bonusbar}
     <div class="qcard"><div class="qtext">${renderMathText(q.text)}</div></div>
-    ${q.type==='short' ? `<div class="panel" style="padding:12px 14px;margin-bottom:12px"><div class="label" style="margin-bottom:8px">Type your answer</div><input class="field" id="shortAnswerInput" maxlength="120" placeholder="Write your answer here" value="${esc(S.myPick && typeof S.myPick==='string'?S.myPick:'')}" ${canOwn||canBonus?'':'disabled'}><button class="btn" id="shortAnswerSubmit" style="margin-top:10px" ${canOwn||canBonus?'':'disabled'}>Submit answer</button></div>` : opts}${note}
+    ${q.type==='short' ? `<div class="panel" style="padding:12px 14px;margin-bottom:12px"><div class="label" style="margin-bottom:8px">Type your answer</div><input class="field" id="shortAnswerInput" maxlength="120" placeholder="Write your answer here" value="${esc(S.myPick && typeof S.myPick==='string'?S.myPick:'')}" ${canAnswer||canBonus?'':'disabled'}><button class="btn" id="shortAnswerSubmit" style="margin-top:10px" ${canAnswer||canBonus?'':'disabled'}>Submit answer</button></div>` : opts}${note}
   </div>
   ${hostNote}${scoreboard(m)}`;}
 function scoreboard(m){const max=Math.max(0,...m.players.map(p=>p.score));return `<div class="scorerail">`+[...m.players].sort((a,b)=>b.score-a.score).map(p=>{const lead=p.score===max&&max>0;const turn=p.id===m.ownerId&&m.stage==='answering';return `<div class="scorechip ${lead?'lead':''} ${turn?'turn':''}">${lead?'<span class="crown">♛</span>':''}<div class="nm"><span class="mini" style="background:${p.isAI?'var(--sky)':avColor(p.id)}"></span>${esc(p.name)}${p.id===ME.id?' (you)':''}${p.isAI?' ◈':''}</div><div class="pts">${p.score}</div></div>`;}).join('')+`</div>`;}

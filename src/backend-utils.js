@@ -115,7 +115,33 @@ function toPlayer({ id, name, connected = true }) {
     name: displayName,
     displayName,
     connected,
+    score: 0,
   };
+}
+
+function getPlayer(room, playerId) {
+  return room && Array.isArray(room.players)
+    ? room.players.find((player) => player.id === String(playerId || ''))
+    : null;
+}
+
+function normalizeResponseText(value) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function buildQuizMessage(room, outcome = 'intro', answerText = '') {
+  const base = room && room.settings ? room.settings.subject : 'the quiz';
+  if (outcome === 'correct') {
+    return `Aria says: excellent work! That was the best answer for ${base}.`;
+  }
+  if (outcome === 'incorrect') {
+    const answer = answerText ? ` The best answer was ${answerText}.` : '';
+    return `Aria says: close one. ${answer} Keep your focus for the next question.`;
+  }
+  if (outcome === 'skip') {
+    return 'Aria says: moving on quickly so the pace stays lively.';
+  }
+  return `Aria says: welcome to ${base}. Choose the best answer or type your response.`;
 }
 
 function createRoomSnapshot(room) {
@@ -128,6 +154,17 @@ function createRoomSnapshot(room) {
     settings: room.settings,
     subjLabel: room.settings.subject,
     serverNow: room.serverNow || Date.now(),
+    stage: room.stage,
+    round: room.round ?? 0,
+    qInRound: room.qInRound ?? 0,
+    ownerId: room.ownerId || room.hostId,
+    question: room.question,
+    qm: room.qm,
+    revealed: Boolean(room.revealed),
+    correctIndex: room.correctIndex,
+    ownResult: room.ownResult,
+    bonusLockedIds: room.bonusLockedIds || [],
+    bonusWinnerId: room.bonusWinnerId,
   };
 }
 
@@ -193,6 +230,11 @@ export function buildLocalBackendResponse(action, body = {}) {
         settings: getDefaultSettings(safeBody.settings),
         questionSeed: generateRoomSeed(roomCode),
         serverNow: Date.now(),
+        qm: {
+          id: `qm-${roomCode}-${Date.now()}`,
+          mood: 'sky',
+          text: 'Aria is ready. Invite your players and start the quiz when you are ready.',
+        },
       };
       ROOM_STORE.set(roomCode, room);
       return createRoomSnapshot(room);
@@ -222,22 +264,18 @@ export function buildLocalBackendResponse(action, body = {}) {
       room.round = 0;
       room.qInRound = 0;
       room.ownerId = room.hostId;
+      room.revealed = false;
+      room.correctIndex = null;
+      room.ownResult = null;
       room.questionSeed = room.questionSeed || generateRoomSeed(room.code);
       room.question = buildRoomQuestion(room, room.round, room.qInRound);
-      room.serverNow = Date.now();
-      return {
-        ok: true,
-        phase: room.phase,
-        stage: room.stage,
-        round: room.round,
-        qInRound: room.qInRound,
-        settings: room.settings,
-        players: room.players,
-        ownerId: room.ownerId,
-        question: room.question,
-        subjLabel: room.settings.subject,
-        serverNow: room.serverNow,
+      room.qm = {
+        id: `qm-${room.code}-${Date.now()}`,
+        mood: 'sky',
+        text: 'Aria is hosting. Choose the best answer or type your response.',
       };
+      room.serverNow = Date.now();
+      return createRoomSnapshot(room);
     }
     case 'state': {
       const roomCode = String(safeBody.code || '').trim().toUpperCase();
@@ -247,17 +285,83 @@ export function buildLocalBackendResponse(action, body = {}) {
       }
       return createRoomSnapshot(room);
     }
-    case 'answer':
-      return {
-        ok: true,
-        correct: true,
-        message: 'Local fallback backend accepted the answer.',
+    case 'answer': {
+      const roomCode = String(safeBody.code || '').trim().toUpperCase();
+      if (!roomCode) {
+        return {
+          ok: true,
+          correct: true,
+          message: 'Local fallback backend accepted the answer.',
+        };
+      }
+      const room = ROOM_STORE.get(roomCode);
+      if (!room) {
+        return { ok: false, error: 'room_not_found', message: 'Room not found' };
+      }
+      const player = getPlayer(room, safeBody.playerId);
+      const question = room.question;
+      if (!player || !question) {
+        return createRoomSnapshot(room);
+      }
+
+      const choice = safeBody.choice;
+      let isCorrect = false;
+      let answerText = '';
+      if (question.type === 'mcq') {
+        const answerIndex = Number(question.answerIndex ?? 0);
+        const choiceIndex = Number(choice ?? -1);
+        isCorrect = choiceIndex === answerIndex;
+        answerText = String(question.answerText || question.options?.[answerIndex] || '');
+      } else {
+        const normalizedChoice = normalizeResponseText(choice);
+        const normalizedAnswer = normalizeResponseText(question.answer || question.answerText || '');
+        isCorrect = normalizedChoice.length > 0 && normalizedAnswer.length > 0 && normalizedChoice === normalizedAnswer;
+        answerText = String(question.answerText || question.answer || '');
+      }
+
+      if (player) {
+        player.score = Number(player.score || 0) + (isCorrect ? 10 : 0);
+      }
+
+      room.revealed = true;
+      room.stage = 'reveal';
+      room.correctIndex = question.answerIndex ?? null;
+      room.ownResult = isCorrect ? 'correct' : 'incorrect';
+      room.qm = {
+        id: `qm-${room.code}-${Date.now()}`,
+        mood: isCorrect ? 'mint' : 'coral',
+        text: isCorrect
+          ? `Aria says: excellent work! ${player.name || 'Player'} chose the correct answer.`
+          : `Aria says: the best answer was ${answerText || 'the correct choice'}.`,
       };
-    case 'skip':
-      return {
-        ok: true,
-        message: 'Local fallback backend skipped the question.',
+      room.serverNow = Date.now();
+      return createRoomSnapshot(room);
+    }
+    case 'skip': {
+      const roomCode = String(safeBody.code || '').trim().toUpperCase();
+      const room = ROOM_STORE.get(roomCode);
+      if (!room) {
+        return { ok: false, error: 'room_not_found', message: 'Room not found' };
+      }
+      room.qInRound = (room.qInRound || 0) + 1;
+      if (room.qInRound >= Math.max(1, Number(room.settings.perRound) || 200)) {
+        room.qInRound = 0;
+        room.round = (room.round || 0) + 1;
+      }
+      room.revealed = false;
+      room.stage = 'answering';
+      room.correctIndex = null;
+      room.ownResult = null;
+      room.ownerId = room.hostId;
+      room.question = buildRoomQuestion(room, room.round, room.qInRound);
+      room.qm = {
+        id: `qm-${room.code}-${Date.now()}`,
+        mood: 'sky',
+        text: 'Aria says: moving on quickly so the pace stays lively.',
       };
+      room.serverNow = Date.now();
+      return createRoomSnapshot(room);
+    }
     case 'leave':
       return {
         ok: true,

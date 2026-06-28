@@ -44,3 +44,15 @@ test('start generates different questions for different rooms', () => {
 
   assert.notEqual(startedA.question.text, startedB.question.text);
 });
+
+test('answering a correct multiple-choice response reveals the result and awards points', () => {
+  const created = buildLocalBackendResponse('create', { playerId: 'host-1', name: 'Alice', settings: { level: 'JHS', subject: 'Mathematics' } });
+  const started = buildLocalBackendResponse('start', { code: created.code, playerId: 'host-1', name: 'Alice' });
+  const answered = buildLocalBackendResponse('answer', { code: created.code, playerId: 'host-1', choice: started.question.answerIndex });
+
+  assert.equal(answered.ok, true);
+  assert.equal(answered.revealed, true);
+  assert.equal(answered.ownResult, 'correct');
+  assert.ok(answered.players.some((player) => player.id === 'host-1' && player.score > 0));
+  assert.match(answered.qm.text, /correct|nice/i);
+});
