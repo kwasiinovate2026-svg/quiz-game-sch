@@ -1,11 +1,12 @@
 services:
   - type: web
     name: dasquiz-server-app
-    env: docker
+    env: node
     branch: main
-    dockerfilePath: Dockerfile
     plan: free
     instanceCount: 1
+    buildCommand: npm install
+    startCommand: npm run start:prod
     envVars:
       - key: NODE_ENV
         value: production

@@ -347,7 +347,8 @@ function initials(n){return (n||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2)
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(S.toastT);S.toastT=setTimeout(()=>t.classList.remove('show'),2600);}
 function fireConfetti(){const c=['#ffd24a','#ff5d73','#54b8ff','#3ddc97','#c08bff'];for(let i=0;i<24;i++){const d=document.createElement('div');d.className='confetti';d.style.left=Math.random()*100+'vw';d.style.background=c[i%c.length];d.style.animationDuration=(1+Math.random()*1.2)+'s';d.style.animationDelay=(Math.random()*.25)+'s';document.body.appendChild(d);setTimeout(()=>d.remove(),2400);}}
 
-let clockOffset=0, countdownT=null, pollTimer=null;
+let clockOffset=0, countdownT=null, pollTimer=null, revealAdvanceT=null;
+function clearRevealAdvance(){if(revealAdvanceT){clearTimeout(revealAdvanceT);revealAdvanceT=null;}}
 function setConn(v){if(S.connected!==v){S.connected=v;render();}else paintConn();}
 function paintConn(){const el=document.getElementById('connpill');if(el){el.className='conn '+(S.connected?'ok':'bad');el.textContent=S.connected?'online':'offline';}}
 
@@ -384,7 +385,16 @@ function buildQuestionBank(level, subject, rounds, perRound, roomCode=''){
       const rng=createSeededRng(roomSeed + roundIndex*97 + i*19 + 1);
       const seed=Math.floor(rng()*10000);
       const context=['in a school project','during a class discussion','for an assessment','in a laboratory activity','while planning a school event','during a field trip'][i%6];
-      if(subj==='Mathematics' || subj.includes('Mathematics')){
+      const subjectKey = subj.toLowerCase();
+      const isMath = subjectKey.includes('mathematics');
+      const isEnglish = subjectKey.includes('english') || subjectKey.includes('literature');
+      const isScience = subjectKey.includes('science') || subjectKey.includes('physics') || subjectKey.includes('chemistry') || subjectKey.includes('biology');
+      const isSocial = subjectKey.includes('social') || subjectKey.includes('history') || subjectKey.includes('government') || subjectKey.includes('geography') || subjectKey.includes('economics') || subjectKey.includes('our world') || subjectKey.includes('people');
+      const isComputing = subjectKey.includes('computing') || subjectKey.includes('ict');
+      const isFrench = subjectKey.includes('french');
+      const isRME = subjectKey.includes('religious') || subjectKey.includes('moral');
+      const isCareer = subjectKey.includes('career');
+      if(isMath){
         if(roundIndex===0){
           const a=12+(seed%9);const b=4+(seed%7);const c=3+(seed%5);const total=a+b+c;
           const p=10+(seed%8);const q=20+(seed%15);const percent=(p*q)/100;
@@ -419,16 +429,95 @@ function buildQuestionBank(level, subject, rounds, perRound, roomCode=''){
           else if(topic===3){const angleA=30+(seed%25);const angleB=60+(seed%20);pool.push({type:'short',text:`A right-angled triangle has one acute angle of ${angleA}° and another acute angle of ${angleB}°. What is the right angle?`,answer:'90',subj:'Mathematics',difficulty:'Level 4'});}
           else{pool.push({type:'short',text:`A bag has 5 red balls and 3 blue balls. What is the probability of choosing a blue ball?`,answer:'3/8',subj:'Mathematics',difficulty:'Level 4'});}}
       }
-      else if(subj==='English' || subj.includes('English')){
+      else if(isEnglish){
         if(roundIndex===0){
-          const choices=['The pupils were reading when the teacher arrived.','The pupils was reading when the teacher arrived.','The pupils are reading when the teacher arrived.','The pupils read when the teacher arrive.'];const correct=choices[0];pool.push({type:'mcq',text:`Choose the sentence that is grammatically correct in a formal school report ${context}.`,options:choices,answerIndex:0,answerText:correct,subj:'English',difficulty:'Level 1'});}
+          const choices=['The pupils were reading when the teacher arrived.','The pupils was reading when the teacher arrived.','The pupils are reading when the teacher arrived.','The pupils read when the teacher arrive.'];
+          pool.push({type:'mcq',text:`Choose the sentence that is grammatically correct in a formal school report ${context}.`,options:choices,answerIndex:0,answerText:choices[0],subj:'English',difficulty:'Level 1'});
+        }
         else if(roundIndex===1){
-          const choices=['The speaker explained the issue clearly and logically.','The speaker explain the issue clear and logic.','The speaker explained the issue clear and logical.','The speaker explaining the issue clearly and logical.'];const correct=choices[0];pool.push({type:'mcq',text:`Which sentence uses vocabulary and structure most effectively in a formal debate ${context}?`,options:choices,answerIndex:0,answerText:correct,subj:'English',difficulty:'Level 2-4'});}
-        else{pool.push({type:'short',text:`In a short essay ${context}, write one sentence that explains the main idea of the passage: “The committee studied the report carefully before making its decision.”`,answer:'The committee studied the report carefully before making its decision.',subj:'English',difficulty:'Scenario'});}
+          const choices=['The speaker explained the issue clearly and logically.','The speaker explain the issue clear and logic.','The speaker explained the issue clear and logical.','The speaker explaining the issue clearly and logical.'];
+          pool.push({type:'mcq',text:`Which sentence uses vocabulary and structure most effectively in a formal debate ${context}?`,options:choices,answerIndex:0,answerText:choices[0],subj:'English',difficulty:'Level 2'});
+        }
+        else{
+          pool.push({type:'short',text:`In a short essay ${context}, write one sentence that explains the main idea of the passage: “The committee studied the report carefully before making its decision.”`,answer:'The committee studied the report carefully before making its decision.',subj:'English',difficulty:'Scenario'});
+        }
+      }
+      else if(isScience){
+        if(roundIndex===0){
+          const parts=['Roots','Leaves','Stem','Flowers'];
+          pool.push({type:'mcq',text:`In a biology lesson ${context}, which structure in a flowering plant absorbs water and mineral ions from the soil?`,options:parts,answerIndex:0,answerText:'Roots',subj:'Integrated Science',difficulty:'Level 1'});
+        }
+        else if(roundIndex===1){
+          const parts=['Oxygen','Nitrogen','Carbon dioxide','Hydrogen'];
+          pool.push({type:'mcq',text:`During a respiration experiment ${context}, which gas is needed for aerobic respiration?`,options:parts,answerIndex:0,answerText:'Oxygen',subj:'Integrated Science',difficulty:'Level 2'});
+        }
+        else{
+          pool.push({type:'short',text:`In a practical investigation ${context}, explain one reason why a metal spoon feels colder than a wooden spoon at room temperature.`,answer:'Metals conduct heat away from the hand more quickly.',subj:'Integrated Science',difficulty:'Scenario'});
+        }
+      }
+      else if(isSocial){
+        if(roundIndex===0){
+          const choices=['United Nations','African Union','ECOWAS','ASEAN'];
+          pool.push({type:'mcq',text:`Which regional organisation helps countries in West Africa cooperate on trade and security?`,options:choices,answerIndex:2,answerText:'ECOWAS',subj:'Social Studies',difficulty:'Level 1'});
+        }
+        else if(roundIndex===1){
+          pool.push({type:'mcq',text:`What is the main purpose of a national budget in a country?`,options:['To collect taxes','To plan spending and revenue','To build schools only','To elect government officials'],answerIndex:1,answerText:'To plan spending and revenue',subj:'Social Studies',difficulty:'Level 2'});
+        }
+        else{
+          pool.push({type:'short',text:`Explain one way citizens can participate in democratic decision-making.`,answer:'By voting in elections or attending community meetings.',subj:'Social Studies',difficulty:'Scenario'});
+        }
+      }
+      else if(isComputing){
+        if(roundIndex===0){
+          const choices=['Keyboard','Operating system','Printer','Router'];
+          pool.push({type:'mcq',text:`Which part of a computer manages hardware and software so programs can run?`,options:choices,answerIndex:1,answerText:'Operating system',subj:'Computing',difficulty:'Level 1'});
+        }
+        else if(roundIndex===1){
+          const choices=['Internet','Network','Database','Algorithm'];
+          pool.push({type:'mcq',text:`A set of instructions a computer follows to solve a problem is called a`,options:choices,answerIndex:3,answerText:'Algorithm',subj:'Computing',difficulty:'Level 2'});
+        }
+        else{
+          pool.push({type:'short',text:`Describe one safe online habit students should follow when using the internet at school.`,answer:'Use strong passwords and do not share personal details.',subj:'Computing',difficulty:'Scenario'});
+        }
+      }
+      else if(isFrench){
+        if(roundIndex===0){
+          const choices=['Bonjour','Adiós','Grazie','Hello'];
+          pool.push({type:'mcq',text:`Which greeting is correct in French?`,options:choices,answerIndex:0,answerText:'Bonjour',subj:'French',difficulty:'Level 1'});
+        }
+        else if(roundIndex===1){
+          const choices=['Merci','Bitte','Gracias','Danke'];
+          pool.push({type:'mcq',text:`Which word means 'thank you' in French?`,options:choices,answerIndex:0,answerText:'Merci',subj:'French',difficulty:'Level 2'});
+        }
+        else{
+          pool.push({type:'short',text:`Translate this short phrase into French: 'Good morning'.`,answer:'Bonjour',subj:'French',difficulty:'Scenario'});
+        }
+      }
+      else if(isRME){
+        if(roundIndex===0){
+          pool.push({type:'mcq',text:`Which action shows respect for other people in the classroom?`,options:['Sharing materials','Shouting loudly','Ignoring the teacher','Skipping lessons'],answerIndex:0,answerText:'Sharing materials',subj:'RME',difficulty:'Level 1'});
+        }
+        else if(roundIndex===1){
+          pool.push({type:'mcq',text:`Why is honesty important in school life?`,options:['It creates confusion','It builds trust','It wastes time','It causes problems'],answerIndex:1,answerText:'It builds trust',subj:'RME',difficulty:'Level 2'});
+        }
+        else{
+          pool.push({type:'short',text:`Give one reason why showing kindness to classmates is important.`,answer:'It helps classmates feel safe and supported.',subj:'RME',difficulty:'Scenario'});
+        }
+      }
+      else if(isCareer){
+        if(roundIndex===0){
+          pool.push({type:'mcq',text:`Which skill is most useful when working in a team?`,options:['Listening','Sleeping','Arguing','Ignoring others'],answerIndex:0,answerText:'Listening',subj:'Career Technology',difficulty:'Level 1'});
+        }
+        else if(roundIndex===1){
+          pool.push({type:'mcq',text:`What should you do if you do not understand an instruction at work?`,options:['Ask for clarification','Ignore it','Do something else','Wait silently'],answerIndex:0,answerText:'Ask for clarification',subj:'Career Technology',difficulty:'Level 2'});
+        }
+        else{
+          pool.push({type:'short',text:`Describe one way to prepare for a future career while still at school.`,answer:'Study well and practice the skills needed for that career.',subj:'Career Technology',difficulty:'Scenario'});
+        }
       }
       else{
         if(roundIndex===0){const parts=['Roots','Leaves','Stem','Flowers'];pool.push({type:'mcq',text:`In a biology lesson ${context}, which structure in a flowering plant absorbs water and mineral ions from the soil?`,options:parts,answerIndex:0,answerText:'Roots',subj:'Science',difficulty:'Level 1'});}
-        else if(roundIndex===1){const parts=['Oxygen','Nitrogen','Carbon dioxide','Hydrogen'];pool.push({type:'mcq',text:`During a respiration experiment ${context}, which gas is needed for aerobic respiration?`,options:parts,answerIndex:0,answerText:'Oxygen',subj:'Science',difficulty:'Level 2-4'});}
+        else if(roundIndex===1){const parts=['Oxygen','Nitrogen','Carbon dioxide','Hydrogen'];pool.push({type:'mcq',text:`During a respiration experiment ${context}, which gas is needed for aerobic respiration?`,options:parts,answerIndex:0,answerText:'Oxygen',subj:'Science',difficulty:'Level 2'});}
         else{pool.push({type:'short',text:`In a practical investigation ${context}, explain one reason why a metal spoon feels colder than a wooden spoon at room temperature.`,answer:'Metals conduct heat away from the hand more quickly.',subj:'Science',difficulty:'Scenario'});}
       }
     }
@@ -461,6 +550,7 @@ function snapSignature(m){
 }
 function applySnap(m){
   if(!m||m.__neterr||m.error)return;
+  clearRevealAdvance();
   S.snap=enrichSnapWithQuestion(m); clockOffset=Date.now()-m.serverNow;
   const qkey=m.round+':'+m.qInRound;
   if(S.pickKey!==qkey){S.myPick=null;S.pickKey=qkey;}
@@ -471,6 +561,10 @@ function applySnap(m){
   const shouldRender=previousScreen!==targetScreen || S.lastSnapSignature!==sig;
   if(m.qm&&m.qm.id!==TTS.lastId){TTS.lastId=m.qm.id;speak(m.qm.text);if(m.stage==='reveal'&&m.ownResult==='correct')fireConfetti();if(m.bonusWinnerId)fireConfetti();}
   if(shouldRender){S.lastSnapSignature=sig;render();}
+  if(m.stage==='reveal' && m.hostId===ME.id && m.phase==='playing'){
+    clearRevealAdvance();
+    revealAdvanceT=setTimeout(()=>{ if(S.snap && S.snap.phase==='playing' && S.snap.stage==='reveal') doSkip(); },4500);
+  }
   startCountdown();
 }
 function startPolling(){stopPolling();pollTimer=setInterval(poll,1200);poll();}
@@ -496,7 +590,7 @@ async function doAnswer(idx, rawText){
   S.myPick=idx;render();applySnap(await api('answer',{code:lastRoom(),playerId:ME.id,choice:idx}));
 }
 async function doSkip(){if(!requireAuth())return;applySnap(await api('skip',{code:lastRoom(),playerId:ME.id}));}
-function doLeave(){const c=lastRoom();stopPolling();if(c)api('leave',{code:c,playerId:ME.id});setLastRoom('');S.snap=null;S.screen='home';render();}
+function doLeave(){const c=lastRoom();stopPolling();clearRevealAdvance();if(c)api('leave',{code:c,playerId:ME.id});setLastRoom('');S.snap=null;S.screen='home';render();}
 function doRetry(){setConn(true);startPolling();}
 function doCopyCode(){const c=lastRoom();if(!c)return;const done=()=>toast('Code copied');
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c).then(done).catch(()=>toast('Code: '+c));}
@@ -726,13 +820,15 @@ function viewGame(){const m=S.snap;if(!m)return viewLobby();
   let note='';
   if(m.stage==='answering'&&canAnswer===false&&S.myPick!=null&&!m.revealed)note=`<p class="center muted" style="margin-top:12px">Locked in — Aria is checking…</p>`;
   if(bonus&&!isOwner&&S.myPick!=null&&!m.revealed)note=`<p class="center muted" style="margin-top:12px">Buzzed! Let's see…</p>`;
-  const hostNote=(m.hostId===ME.id)?`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(255,210,74,.07);border:1px solid rgba(255,210,74,.22);border-radius:14px;padding:11px 14px;margin:6px 0 12px;font-size:13px;color:#ffe9a8"><span>★ You're the host</span><button class="btn ghost sm" id="skipBtn">Skip ▷</button></div>`:'';
+  const continueButton = m.stage==='reveal' ? `<div style="margin-top:14px"><button class="btn sm" id="nextBtn">Next question</button></div>` : '';
+  const hostNote=(m.hostId===ME.id && m.stage==='answering')?`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(255,210,74,.07);border:1px solid rgba(255,210,74,.22);border-radius:14px;padding:11px 14px;margin:6px 0 12px;font-size:13px;color:#ffe9a8"><span>★ You're the host</span><button class="btn ghost sm" id="skipBtn">Skip ▷</button></div>`:'';
   return topbar(`<button class="iconbtn" data-leave="1">✕</button>`)+`
   <div class="stage"><div class="spot"></div>${bubble}
     <div class="qmeta"><span class="rbadge">Round ${m.round+1}/${m.settings.rounds}</span><span class="cat">${esc(q.subj||m.settings.subject)}</span><span class="num">${timer||('Q '+(m.qInRound+1)+'/'+m.settings.perRound)}</span></div>
     ${flag}${bonusbar}
     <div class="qcard"><div class="qtext">${renderMathText(q.text)}</div></div>
     ${q.type==='short' ? `<div class="panel" style="padding:12px 14px;margin-bottom:12px"><div class="label" style="margin-bottom:8px">Type your answer</div><input class="field" id="shortAnswerInput" maxlength="120" placeholder="Write your answer here" value="${esc(S.myPick && typeof S.myPick==='string'?S.myPick:'')}" ${canAnswer||canBonus?'':'disabled'}><button class="btn" id="shortAnswerSubmit" style="margin-top:10px" ${canAnswer||canBonus?'':'disabled'}>Submit answer</button></div>` : opts}${note}
+    ${continueButton}
   </div>
   ${hostNote}${scoreboard(m)}`;}
 function scoreboard(m){const max=Math.max(0,...m.players.map(p=>p.score));return `<div class="scorerail">`+[...m.players].sort((a,b)=>b.score-a.score).map(p=>{const lead=p.score===max&&max>0;const turn=p.id===m.ownerId&&m.stage==='answering';return `<div class="scorechip ${lead?'lead':''} ${turn?'turn':''}">${lead?'<span class="crown">♛</span>':''}<div class="nm"><span class="mini" style="background:${p.isAI?'var(--sky)':avColor(p.id)}"></span>${esc(p.name)}${p.id===ME.id?' (you)':''}${p.isAI?' ◈':''}</div><div class="pts">${p.score}</div></div>`;}).join('')+`</div>`;}
@@ -817,6 +913,7 @@ function bind(){
   const jb=document.getElementById('joinBtn');if(jb)jb.onclick=()=>doJoin(document.getElementById('codeIn').value);
   const sb=document.getElementById('startBtn');if(sb)sb.onclick=()=>doStart();
   const sk=document.getElementById('skipBtn');if(sk)sk.onclick=()=>doSkip();
+  const nb=document.getElementById('nextBtn');if(nb)nb.onclick=()=>doSkip();
   const shb=document.getElementById('shareBtn');if(shb)shb.onclick=()=>doShare();
   const cpb=document.getElementById('copyBtn');if(cpb)cpb.onclick=()=>doCopyCode();
   document.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>doAnswer(+b.dataset.pick));

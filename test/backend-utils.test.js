@@ -56,3 +56,19 @@ test('answering a correct multiple-choice response reveals the result and awards
   assert.ok(answered.players.some((player) => player.id === 'host-1' && player.score > 0));
   assert.match(answered.qm.text, /correct|nice/i);
 });
+
+test('skip advances the room and ends the quiz after the final question', () => {
+  const created = buildLocalBackendResponse('create', {
+    playerId: 'host-1',
+    name: 'Alice',
+    settings: { level: 'JHS', subject: 'Mathematics', rounds: 1, perRound: 1 },
+  });
+  const started = buildLocalBackendResponse('start', { code: created.code, playerId: 'host-1', name: 'Alice' });
+  const answered = buildLocalBackendResponse('answer', { code: created.code, playerId: 'host-1', choice: started.question.answerIndex });
+  const next = buildLocalBackendResponse('skip', { code: created.code });
+
+  assert.equal(answered.phase, 'playing');
+  assert.equal(answered.stage, 'reveal');
+  assert.equal(next.phase, 'finished');
+  assert.equal(next.stage, 'results');
+});

@@ -45,6 +45,14 @@ docker build -t dasquiz:latest .
 docker run -p 3000:3000 --env-file .env -e NODE_ENV=production dasquiz:latest
 ```
 
+Render deployment
+
+- This repository already includes a Render service manifest in `render.yaml`.
+- The manifest uses Render's Node environment and runs `npm run start:prod`.
+- Connect the GitHub repository to Render and select the `main` branch.
+- Render will install dependencies, build the app, and run it on the configured `PORT`.
+- Set `NODE_ENV=production` and optionally provide `BACKEND_URL` and `API_TOKEN` if you want the server to proxy a remote backend.
+
 Notes
 
 - The server will serve `index.html` and static assets from the repository root. If `BACKEND_URL` and `API_TOKEN` are provided, the server will proxy `/api/*` requests to the configured backend.

@@ -40,8 +40,17 @@ function buildRoomQuestion(room, roundIndex = 0, questionIndex = 0) {
   const level = String(settings.level || 'JHS').trim();
   const baseSeed = (room && room.questionSeed ? room.questionSeed : generateRoomSeed(room && room.code)) + roundIndex * 97 + questionIndex * 11;
   const rng = createSeededRng(baseSeed);
+  const subjectKey = subject.toLowerCase();
+  const isMath = subjectKey.includes('mathematics');
+  const isEnglish = subjectKey.includes('english') || subjectKey.includes('literature');
+  const isScience = subjectKey.includes('science') || subjectKey.includes('physics') || subjectKey.includes('chemistry') || subjectKey.includes('biology');
+  const isSocial = subjectKey.includes('social') || subjectKey.includes('history') || subjectKey.includes('government') || subjectKey.includes('geography') || subjectKey.includes('economics') || subjectKey.includes('our world') || subjectKey.includes('people');
+  const isComputing = subjectKey.includes('computing') || subjectKey.includes('ict');
+  const isFrench = subjectKey.includes('french');
+  const isRME = subjectKey.includes('religious') || subjectKey.includes('moral');
+  const isCareer = subjectKey.includes('career');
 
-  if (subject.includes('English')) {
+  if (isEnglish) {
     const choices = [
       'The pupils were reading when the teacher arrived.',
       'The pupils was reading when the teacher arrived.',
@@ -52,7 +61,7 @@ function buildRoomQuestion(room, roundIndex = 0, questionIndex = 0) {
     const shuffled = [...choices].sort(() => rng() - 0.5);
     return {
       type: 'mcq',
-      text: 'Choose the grammatically correct sentence for this class activity.',
+      text: 'Choose the grammatically correct sentence in this school report context.',
       options: shuffled,
       answerIndex: shuffled.indexOf(answer),
       answerText: answer,
@@ -61,16 +70,172 @@ function buildRoomQuestion(room, roundIndex = 0, questionIndex = 0) {
     };
   }
 
-  if (subject.includes('Science') || subject.includes('Social') || subject.includes('History') || subject.includes('Computing')) {
-    const value = 2 + Math.floor(rng() * 8);
-    const other = 3 + Math.floor(rng() * 6);
-    const answer = value + other;
+  if (isMath) {
+    const a = 2 + Math.floor(rng() * 9);
+    const b = 2 + Math.floor(rng() * 8);
+    const answer = a * b;
+    const options = [String(answer), String(answer + 1), String(answer - 1), String(answer + 2)];
     return {
       type: 'mcq',
-      text: `What is ${value} + ${other}?`,
-      options: [String(answer), String(answer + 1), String(answer + 2), String(answer - 1)],
+      text: `What is ${a} × ${b}?`,
+      options,
       answerIndex: 0,
       answerText: String(answer),
+      subj: subject,
+      difficulty: level,
+    };
+  }
+
+  if (isScience) {
+    const facts = [
+      {
+        text: 'Which gas do plants take in to make food during photosynthesis?',
+        options: ['Oxygen', 'Carbon dioxide', 'Nitrogen', 'Hydrogen'],
+        answer: 'Carbon dioxide',
+      },
+      {
+        text: 'Which part of the human body pumps blood around the body?',
+        options: ['Liver', 'Brain', 'Heart', 'Lungs'],
+        answer: 'Heart',
+      },
+      {
+        text: 'Water freezes at 0 degrees on which temperature scale?',
+        options: ['Fahrenheit', 'Celsius', 'Kelvin', 'Rankine'],
+        answer: 'Celsius',
+      },
+    ];
+    const item = facts[questionIndex % facts.length];
+    return {
+      type: 'mcq',
+      text: item.text,
+      options: item.options,
+      answerIndex: item.options.indexOf(item.answer),
+      answerText: item.answer,
+      subj: subject,
+      difficulty: level,
+    };
+  }
+
+  if (isSocial) {
+    const topics = [
+      {
+        text: 'Which regional organisation helps countries in West Africa cooperate on trade and security?',
+        options: ['United Nations', 'African Union', 'ECOWAS', 'ASEAN'],
+        answer: 'ECOWAS',
+      },
+      {
+        text: 'What is the main purpose of a national budget in a country?',
+        options: ['To collect taxes', 'To plan spending and revenue', 'To build schools only', 'To elect government officials'],
+        answer: 'To plan spending and revenue',
+      },
+    ];
+    const item = topics[questionIndex % topics.length];
+    return {
+      type: 'mcq',
+      text: item.text,
+      options: item.options,
+      answerIndex: item.options.indexOf(item.answer),
+      answerText: item.answer,
+      subj: subject,
+      difficulty: level,
+    };
+  }
+
+  if (isComputing) {
+    const choices = [
+      {
+        text: 'Which part of a computer manages hardware and software so programs can run?',
+        options: ['Keyboard', 'Operating system', 'Printer', 'Router'],
+        answer: 'Operating system',
+      },
+      {
+        text: 'A set of instructions a computer follows to solve a problem is called a',
+        options: ['Internet', 'Network', 'Database', 'Algorithm'],
+        answer: 'Algorithm',
+      },
+    ];
+    const item = choices[questionIndex % choices.length];
+    return {
+      type: 'mcq',
+      text: item.text,
+      options: item.options,
+      answerIndex: item.options.indexOf(item.answer),
+      answerText: item.answer,
+      subj: subject,
+      difficulty: level,
+    };
+  }
+
+  if (isFrench) {
+    const choices = [
+      {
+        text: 'Which greeting is correct in French?',
+        options: ['Bonjour', 'Adiós', 'Grazie', 'Hello'],
+        answer: 'Bonjour',
+      },
+      {
+        text: 'Which word means “thank you” in French?',
+        options: ['Merci', 'Bitte', 'Gracias', 'Danke'],
+        answer: 'Merci',
+      },
+    ];
+    const item = choices[questionIndex % choices.length];
+    return {
+      type: 'mcq',
+      text: item.text,
+      options: item.options,
+      answerIndex: item.options.indexOf(item.answer),
+      answerText: item.answer,
+      subj: subject,
+      difficulty: level,
+    };
+  }
+
+  if (isRME) {
+    const choices = [
+      {
+        text: 'Which action shows respect for other people in the classroom?',
+        options: ['Sharing materials', 'Shouting loudly', 'Ignoring the teacher', 'Skipping lessons'],
+        answer: 'Sharing materials',
+      },
+      {
+        text: 'Why is honesty important in school life?',
+        options: ['It creates confusion', 'It builds trust', 'It wastes time', 'It causes problems'],
+        answer: 'It builds trust',
+      },
+    ];
+    const item = choices[questionIndex % choices.length];
+    return {
+      type: 'mcq',
+      text: item.text,
+      options: item.options,
+      answerIndex: item.options.indexOf(item.answer),
+      answerText: item.answer,
+      subj: subject,
+      difficulty: level,
+    };
+  }
+
+  if (isCareer) {
+    const choices = [
+      {
+        text: 'Which skill is most useful when working in a team?',
+        options: ['Listening', 'Sleeping', 'Arguing', 'Ignoring others'],
+        answer: 'Listening',
+      },
+      {
+        text: 'What should you do if you do not understand an instruction at work?',
+        options: ['Ask for clarification', 'Ignore it', 'Do something else', 'Wait silently'],
+        answer: 'Ask for clarification',
+      },
+    ];
+    const item = choices[questionIndex % choices.length];
+    return {
+      type: 'mcq',
+      text: item.text,
+      options: item.options,
+      answerIndex: item.options.indexOf(item.answer),
+      answerText: item.answer,
       subj: subject,
       difficulty: level,
     };
@@ -165,6 +330,39 @@ function createRoomSnapshot(room) {
     ownResult: room.ownResult,
     bonusLockedIds: room.bonusLockedIds || [],
     bonusWinnerId: room.bonusWinnerId,
+  };
+}
+
+function advanceRoomQuestion(room) {
+  const rounds = Math.max(1, Number(room.settings?.rounds) || 3);
+  const perRound = Math.max(1, Number(room.settings?.perRound) || 200);
+  room.qInRound = (room.qInRound || 0) + 1;
+  if (room.qInRound >= perRound) {
+    room.qInRound = 0;
+    room.round = (room.round || 0) + 1;
+  }
+
+  if ((room.round || 0) >= rounds) {
+    room.phase = 'finished';
+    room.stage = 'results';
+    room.qm = {
+      id: `qm-${room.code}-${Date.now()}`,
+      mood: 'gold',
+      text: 'Quiz complete! See the final results and celebrate your top players.',
+    };
+    return;
+  }
+
+  room.revealed = false;
+  room.stage = 'answering';
+  room.correctIndex = null;
+  room.ownResult = null;
+  room.ownerId = room.hostId;
+  room.question = buildRoomQuestion(room, room.round, room.qInRound);
+  room.qm = {
+    id: `qm-${room.code}-${Date.now()}`,
+    mood: 'sky',
+    text: 'Aria is ready. Choose the best answer or type your response.',
   };
 }
 
@@ -343,24 +541,12 @@ export function buildLocalBackendResponse(action, body = {}) {
       if (!room) {
         return { ok: false, error: 'room_not_found', message: 'Room not found' };
       }
-      room.qInRound = (room.qInRound || 0) + 1;
-      if (room.qInRound >= Math.max(1, Number(room.settings.perRound) || 200)) {
-        room.qInRound = 0;
-        room.round = (room.round || 0) + 1;
-      }
-      room.revealed = false;
-      room.stage = 'answering';
-      room.correctIndex = null;
-      room.ownResult = null;
-      room.ownerId = room.hostId;
-      room.question = buildRoomQuestion(room, room.round, room.qInRound);
-      room.qm = {
-        id: `qm-${room.code}-${Date.now()}`,
-        mood: 'sky',
-        text: 'Aria says: moving on quickly so the pace stays lively.',
-      };
+      advanceRoomQuestion(room);
       room.serverNow = Date.now();
       return createRoomSnapshot(room);
+    }
+    case 'next': {
+      return buildLocalBackendResponse('skip', body);
     }
     case 'leave':
       return {
