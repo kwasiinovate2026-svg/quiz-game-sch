@@ -364,14 +364,18 @@ function normalizeQuestionShape(q, m){
   else{normalized.answer=String(q.answer||q.correct||q.expected||'').trim();}
   return normalized;
 }
-function buildQuestionBank(level, subject, rounds, perRound){
+function hashString(value){let h=0;for(const ch of String(value||'')){h=(h<<5)-h+ch.charCodeAt(0);h|=0;}return h>>>0;}
+function createSeededRng(seed){let state=(seed>>>0)||0x6d2b79f5;return()=>{state=(state+0x6d2b79f5)>>>0;let t=Math.imul(state^(state>>>15),1|state);t^=t+Math.imul(t^(t>>>7),61|t);return((t^(t>>>14))>>>0)/4294967296;};}
+function buildQuestionBank(level, subject, rounds, perRound, roomCode=''){
   const size=Math.max(200, Number(perRound)||200);
   const subj=String(subject||'All subjects').replace(/\s+/g,' ').trim();
+  const roomSeed=hashString(roomCode||'default-room');
   const list=[];
   for(let roundIndex=0;roundIndex<Math.max(3,Number(rounds)||3);roundIndex++){
     const pool=[];
     for(let i=0;i<size;i++){
-      const seed=i+1+roundIndex*97;
+      const rng=createSeededRng(roomSeed + roundIndex*97 + i*19 + 1);
+      const seed=Math.floor(rng()*10000);
       const context=['in a school project','during a class discussion','for an assessment','in a laboratory activity','while planning a school event','during a field trip'][i%6];
       if(subj==='Mathematics' || subj.includes('Mathematics')){
         if(roundIndex===0){
@@ -425,9 +429,9 @@ function buildQuestionBank(level, subject, rounds, perRound){
   }
   return list;
 }
-function getQuestionBank(level, subject, rounds, perRound){
-  const key=`${level||'JHS'}::${subject||'All subjects'}::${rounds||3}::${perRound||200}`;
-  if(!S.questionBank || S.questionBank.key!==key){S.questionBank={key, bank:buildQuestionBank(level, subject, rounds, perRound)};}
+function getQuestionBank(level, subject, rounds, perRound, roomCode=''){
+  const key=`${level||'JHS'}::${subject||'All subjects'}::${rounds||3}::${perRound||200}::${roomCode||'default-room'}`;
+  if(!S.questionBank || S.questionBank.key!==key){S.questionBank={key, bank:buildQuestionBank(level, subject, rounds, perRound, roomCode)};}
   return S.questionBank.bank;
 }
 function enrichSnapWithQuestion(m){
@@ -436,7 +440,7 @@ function enrichSnapWithQuestion(m){
   const subject=(m.settings&&m.settings.subject)||CREATE.subject;
   const rounds=(m.settings&&m.settings.rounds)||3;
   const perRound=(m.settings&&m.settings.perRound)||200;
-  const bank=getQuestionBank(level, subject, rounds, perRound);
+  const bank=getQuestionBank(level, subject, rounds, perRound, m.code||'');
   const roundBank=bank[Math.min(m.round||0, bank.length-1)]||[];
   const fallback=roundBank[Math.min(m.qInRound||0, roundBank.length-1)]||null;
   const q=normalizeQuestionShape((m.question&&typeof m.question==='object')?m.question:fallback, m);
@@ -446,7 +450,7 @@ function enrichSnapWithQuestion(m){
 function snapSignature(m){
   const players=Array.isArray(m.players)?m.players.map(p=>`${p.id}:${p.score}:${p.connected?1:0}:${p.name||''}`).join('|'):'';
   const q=m.question&&typeof m.question==='object'?m.question:{};
-  return `${m.phase||''}|${m.stage||''}|${m.round||0}|${m.qInRound||0}|${m.ownerId||''}|${m.revealed?1:0}|${m.bonusWinnerId||''}|${(m.bonusLockedIds||[]).join(',')}|${players}|${q.text||''}|${q.type||''}|${m.subjLabel||''}`;
+  return `${m.phase||''}|${m.stage||''}|${m.round||0}|${m.qInRound||0}|${m.ownerId||''}|${m.revealed?1:0}|${m.bonusWinnerId||''}|${(m.bonusLockedIds||[]).join(',')}|${players}|${q.text||''}|${q.type||''}|${m.subjLabel||''}|${m.code||''}`;
 }
 function applySnap(m){
   if(!m||m.__neterr||m.error)return;

@@ -11,6 +11,91 @@ function generateRoomCode() {
   return Array.from({ length: 4 }, () => String.fromCharCode(65 + Math.floor(Math.random() * 26))).join('');
 }
 
+function hashString(value) {
+  let hash = 0;
+  for (const char of String(value ?? '')) {
+    hash = (hash << 5) - hash + char.charCodeAt(0);
+    hash |= 0;
+  }
+  return hash >>> 0;
+}
+
+function createSeededRng(seed) {
+  let state = (seed >>> 0) || 0x6d2b79f5;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function generateRoomSeed(code = '') {
+  return hashString(`${code}:${Date.now()}:${Math.random()}`);
+}
+
+function buildRoomQuestion(room, roundIndex = 0, questionIndex = 0) {
+  const settings = room && room.settings ? room.settings : {};
+  const subject = String(settings.subject || 'All subjects').trim();
+  const level = String(settings.level || 'JHS').trim();
+  const baseSeed = (room && room.questionSeed ? room.questionSeed : generateRoomSeed(room && room.code)) + roundIndex * 97 + questionIndex * 11;
+  const rng = createSeededRng(baseSeed);
+
+  if (subject.includes('English')) {
+    const choices = [
+      'The pupils were reading when the teacher arrived.',
+      'The pupils was reading when the teacher arrived.',
+      'The pupils are reading when the teacher arrived.',
+      'The pupils read when the teacher arrive.',
+    ];
+    const answer = choices[0];
+    const shuffled = [...choices].sort(() => rng() - 0.5);
+    return {
+      type: 'mcq',
+      text: 'Choose the grammatically correct sentence for this class activity.',
+      options: shuffled,
+      answerIndex: shuffled.indexOf(answer),
+      answerText: answer,
+      subj: subject,
+      difficulty: level,
+    };
+  }
+
+  if (subject.includes('Science') || subject.includes('Social') || subject.includes('History') || subject.includes('Computing')) {
+    const value = 2 + Math.floor(rng() * 8);
+    const other = 3 + Math.floor(rng() * 6);
+    const answer = value + other;
+    return {
+      type: 'mcq',
+      text: `What is ${value} + ${other}?`,
+      options: [String(answer), String(answer + 1), String(answer + 2), String(answer - 1)],
+      answerIndex: 0,
+      answerText: String(answer),
+      subj: subject,
+      difficulty: level,
+    };
+  }
+
+  const first = 2 + Math.floor(rng() * 9);
+  const second = 2 + Math.floor(rng() * 8);
+  const answer = first * second;
+  const distractors = [answer + 1, answer + 2, answer - 1].filter((value, index, list) => list.indexOf(value) === index);
+  const options = [String(answer), ...distractors.slice(0, 3)];
+  while (options.length < 4) {
+    options.push(String(Number(answer) + options.length));
+  }
+
+  return {
+    type: 'mcq',
+    text: `What is ${first} × ${second}?`,
+    options,
+    answerIndex: options.indexOf(String(answer)),
+    answerText: String(answer),
+    subj: subject,
+    difficulty: level,
+  };
+}
+
 function getDefaultSettings(settings = {}) {
   return {
     level: settings.level || 'JHS',
@@ -106,6 +191,7 @@ export function buildLocalBackendResponse(action, body = {}) {
         phase: 'lobby',
         players: [toPlayer({ id: hostId, name: hostName, connected: true })],
         settings: getDefaultSettings(safeBody.settings),
+        questionSeed: generateRoomSeed(roomCode),
         serverNow: Date.now(),
       };
       ROOM_STORE.set(roomCode, room);
@@ -136,12 +222,8 @@ export function buildLocalBackendResponse(action, body = {}) {
       room.round = 0;
       room.qInRound = 0;
       room.ownerId = room.hostId;
-      room.question = {
-        type: 'mcq',
-        text: 'What is 2 + 2?',
-        options: ['3', '4', '5', '6'],
-        answerIndex: 1,
-      };
+      room.questionSeed = room.questionSeed || generateRoomSeed(room.code);
+      room.question = buildRoomQuestion(room, room.round, room.qInRound);
       room.serverNow = Date.now();
       return {
         ok: true,

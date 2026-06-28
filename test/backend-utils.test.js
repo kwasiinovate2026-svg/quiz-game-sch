@@ -35,3 +35,12 @@ test('join keeps the original host and adds the new player as a guest', () => {
   assert.equal(joined.players.length, 2);
   assert.equal(joined.players[1].displayName, 'Bob');
 });
+
+test('start generates different questions for different rooms', () => {
+  const roomA = buildLocalBackendResponse('create', { playerId: 'host-1', name: 'Alice', settings: { level: 'JHS', subject: 'Mathematics' } });
+  const roomB = buildLocalBackendResponse('create', { playerId: 'host-2', name: 'Bob', settings: { level: 'JHS', subject: 'Mathematics' } });
+  const startedA = buildLocalBackendResponse('start', { code: roomA.code, playerId: 'host-1', name: 'Alice' });
+  const startedB = buildLocalBackendResponse('start', { code: roomB.code, playerId: 'host-2', name: 'Bob' });
+
+  assert.notEqual(startedA.question.text, startedB.question.text);
+});
