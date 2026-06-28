@@ -6,7 +6,7 @@ import { WebSocketServer } from 'ws';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { getBackendTargetUrl, normalizeBackendUrl } from './backend-utils.js';
+import { buildLocalBackendResponse, getBackendTargetUrl, normalizeBackendUrl } from './backend-utils.js';
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 
@@ -30,12 +30,9 @@ function sendBackendError(res, error, message, status = 503) {
 }
 
 async function proxyJsonRequest(req, res, proxyPath = '') {
-  if (!BACKEND_URL) {
-    return sendBackendError(res, 'backend_not_configured', 'BACKEND_URL is not configured');
-  }
-
-  if (!API_TOKEN) {
-    return sendBackendError(res, 'missing_api_token', 'Server API_TOKEN not configured', 500);
+  if (!BACKEND_URL || !API_TOKEN) {
+    const payload = buildLocalBackendResponse(proxyPath, req.body || {});
+    return res.status(200).json(payload);
   }
 
   try {
