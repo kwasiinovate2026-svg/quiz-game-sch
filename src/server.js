@@ -14,7 +14,7 @@ app.use(express.json({ limit: '1mb' }));
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '..');
+const repoRoot = process.cwd() || path.resolve(__dirname, '..');
 const indexPath = path.join(repoRoot, 'index.html');
 
 // Serve SPA at both / and /index.html
