@@ -20,7 +20,8 @@ const indexPath = path.join(repoRoot, 'index.html');
 
 // Backend proxy configuration
 const BACKEND_URL = process.env.BACKEND_URL || 'https://api';
-const API_TOKEN = process.env.API_TOKEN || 'rnd_vXW4zr9ZaHtNo54STAfDHKIQqBdS';
+// API token must be provided via environment variable in production.
+const API_TOKEN = process.env.API_TOKEN;
 
 // Serve SPA at both / and /index.html
 app.get(['/', '/index.html'], (req, res) => res.sendFile(indexPath));
@@ -35,6 +36,10 @@ app.get('/healthz', (req, res) => res.json({ ok: true }));
 // the `Authorization: Bearer ${API_TOKEN}` header.
 app.post('/api/proxy/*', async (req, res) => {
   try {
+    if (!API_TOKEN) {
+      return res.status(500).json({ error: 'missing_api_token', message: 'Server API_TOKEN not configured' });
+    }
+
     const proxyPath = req.params[0] || '';
     const url = new URL(proxyPath, BACKEND_URL).toString();
 
