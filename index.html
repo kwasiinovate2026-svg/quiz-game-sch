@@ -561,9 +561,12 @@ function applySnap(m){
   const shouldRender=previousScreen!==targetScreen || S.lastSnapSignature!==sig;
   if(m.qm&&m.qm.id!==TTS.lastId){TTS.lastId=m.qm.id;speak(m.qm.text);if(m.stage==='reveal'&&m.ownResult==='correct')fireConfetti();if(m.bonusWinnerId)fireConfetti();}
   if(shouldRender){S.lastSnapSignature=sig;render();}
-  if(m.stage==='reveal' && m.hostId===ME.id && m.phase==='playing'){
+  if(m.stage==='reveal' && m.phase==='playing'){
     clearRevealAdvance();
-    revealAdvanceT=setTimeout(()=>{ if(S.snap && S.snap.phase==='playing' && S.snap.stage==='reveal') doSkip(); },4500);
+    const autoAdvanceMs=Number(m.autoAdvanceMs || 0);
+    if(autoAdvanceMs>0){
+      revealAdvanceT=setTimeout(()=>{ if(S.snap && S.snap.phase==='playing' && S.snap.stage==='reveal') doSkip(); },autoAdvanceMs);
+    }
   }
   startCountdown();
 }

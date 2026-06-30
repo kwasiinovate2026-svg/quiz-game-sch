@@ -265,12 +265,25 @@ function getDefaultSettings(settings = {}) {
   return {
     level: settings.level || 'JHS',
     subject: settings.subject || 'All subjects',
-    perRound: settings.perRound || 200,
+    perRound: Number(settings.perRound) || 200,
     seconds: settings.seconds || 45,
     rounds: settings.rounds || 3,
     aiCount: settings.aiCount || 0,
     aiDiff: settings.aiDiff || 'medium',
   };
+}
+
+function clearAutoAdvance(room) {
+  room.autoAdvance = false;
+  room.autoAdvanceMs = 0;
+  room.autoAdvanceAt = null;
+}
+
+function scheduleAutoAdvance(room, ms = 4000) {
+  const delay = Math.max(0, Number(ms) || 0);
+  room.autoAdvance = delay > 0;
+  room.autoAdvanceMs = delay;
+  room.autoAdvanceAt = delay > 0 ? Date.now() + delay : null;
 }
 
 function toPlayer({ id, name, connected = true }) {
@@ -330,10 +343,13 @@ function createRoomSnapshot(room) {
     ownResult: room.ownResult,
     bonusLockedIds: room.bonusLockedIds || [],
     bonusWinnerId: room.bonusWinnerId,
+    autoAdvance: Boolean(room.autoAdvance),
+    autoAdvanceMs: Number(room.autoAdvanceMs || 0),
   };
 }
 
 function advanceRoomQuestion(room) {
+  clearAutoAdvance(room);
   const rounds = Math.max(1, Number(room.settings?.rounds) || 3);
   const perRound = Math.max(1, Number(room.settings?.perRound) || 200);
   room.qInRound = (room.qInRound || 0) + 1;
@@ -465,6 +481,7 @@ export function buildLocalBackendResponse(action, body = {}) {
       room.revealed = false;
       room.correctIndex = null;
       room.ownResult = null;
+      clearAutoAdvance(room);
       room.questionSeed = room.questionSeed || generateRoomSeed(room.code);
       room.question = buildRoomQuestion(room, room.round, room.qInRound);
       room.qm = {
@@ -524,6 +541,7 @@ export function buildLocalBackendResponse(action, body = {}) {
       room.revealed = true;
       room.stage = 'reveal';
       room.correctIndex = question.answerIndex ?? null;
+      scheduleAutoAdvance(room, 4000);
       room.ownResult = isCorrect ? 'correct' : 'incorrect';
       room.qm = {
         id: `qm-${room.code}-${Date.now()}`,

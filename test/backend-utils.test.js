@@ -57,6 +57,16 @@ test('answering a correct multiple-choice response reveals the result and awards
   assert.match(answered.qm.text, /correct|nice/i);
 });
 
+test('answer reveals expose automatic turn advance information', () => {
+  const created = buildLocalBackendResponse('create', { playerId: 'host-1', name: 'Alice', settings: { level: 'JHS', subject: 'Mathematics' } });
+  const started = buildLocalBackendResponse('start', { code: created.code, playerId: 'host-1', name: 'Alice' });
+  const answered = buildLocalBackendResponse('answer', { code: created.code, playerId: 'host-1', choice: started.question.answerIndex });
+
+  assert.equal(answered.stage, 'reveal');
+  assert.equal(answered.autoAdvance, true);
+  assert.ok(Number(answered.autoAdvanceMs) >= 3000);
+});
+
 test('skip advances the room and ends the quiz after the final question', () => {
   const created = buildLocalBackendResponse('create', {
     playerId: 'host-1',
