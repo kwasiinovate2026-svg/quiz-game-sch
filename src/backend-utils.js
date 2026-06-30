@@ -6,6 +6,7 @@ const PLACEHOLDER_BACKEND_URLS = new Set([
   'http://backend',
 ]);
 const ROOM_STORE = new Map();
+let roomSeedCounter = 0;
 
 function generateRoomCode() {
   return Array.from({ length: 4 }, () => String.fromCharCode(65 + Math.floor(Math.random() * 26))).join('');
@@ -31,7 +32,8 @@ function createSeededRng(seed) {
 }
 
 function generateRoomSeed(code = '') {
-  return hashString(`${code}:${Date.now()}:${Math.random()}`);
+  roomSeedCounter = (roomSeedCounter + 1) >>> 0;
+  return hashString(`${code}:${Date.now()}:${Math.random()}:${roomSeedCounter}`);
 }
 
 function buildRoomQuestion(room, roundIndex = 0, questionIndex = 0) {
@@ -41,6 +43,7 @@ function buildRoomQuestion(room, roundIndex = 0, questionIndex = 0) {
   const baseSeed = (room && room.questionSeed ? room.questionSeed : generateRoomSeed(room && room.code)) + roundIndex * 97 + questionIndex * 11;
   const rng = createSeededRng(baseSeed);
   const subjectKey = subject.toLowerCase();
+  const levelKey = String(level).trim().toLowerCase().includes('primary') ? 'primary' : String(level).trim().toLowerCase().includes('shs') ? 'shs' : 'jhs';
   const isMath = subjectKey.includes('mathematics') || subjectKey.includes('numeracy');
   const isEnglish = subjectKey.includes('english') || subjectKey.includes('literature') || subjectKey.includes('language');
   const isScience = subjectKey.includes('science') || subjectKey.includes('physics') || subjectKey.includes('chemistry') || subjectKey.includes('biology') || subjectKey.includes('integrated');
@@ -72,23 +75,59 @@ function buildRoomQuestion(room, roundIndex = 0, questionIndex = 0) {
   const useShort = (roundIndex + questionIndex + 1) % 4 === 0;
 
   if (isEnglish) {
-    const templates = [
-      {
-        text: 'Choose the grammatically correct sentence in this school report context.',
-        options: ['The pupils were reading when the teacher arrived.', 'The pupils was reading when the teacher arrived.', 'The pupils are reading when the teacher arrived.', 'The pupils read when the teacher arrive.'],
-        answerText: 'The pupils were reading when the teacher arrived.',
-      },
-      {
-        text: 'Which sentence is most appropriate for a formal debate introduction?',
-        options: ['The speaker explained the issue clearly and logically.', 'The speaker explain the issue clear and logic.', 'The speaker explaining the issue clearly and logical.', 'The speaker explained the issue clear and logical.'],
-        answerText: 'The speaker explained the issue clearly and logically.',
-      },
-      {
-        text: 'Choose the best way to complete the sentence: The committee ______ the report before making its decision.',
-        options: ['studied', 'studies', 'study', 'studying'],
-        answerText: 'studied',
-      },
-    ];
+    const templates = levelKey === 'primary'
+      ? [
+          {
+            text: 'Choose the correct sentence.',
+            options: ['The cat is on the mat.', 'The cat are on the mat.', 'The cat am on the mat.', 'The cat be on the mat.'],
+            answerText: 'The cat is on the mat.',
+          },
+          {
+            text: 'Choose the correct word to complete the sentence: I _____ to school every day.',
+            options: ['go', 'goes', 'gone', 'going'],
+            answerText: 'go',
+          },
+          {
+            text: 'Which word is the opposite of “big”?',
+            options: ['small', 'tall', 'fast', 'old'],
+            answerText: 'small',
+          },
+        ]
+      : levelKey === 'shs'
+        ? [
+            {
+              text: 'Which sentence is most appropriate for a formal debate introduction?',
+              options: ['The speaker explained the issue clearly and logically.', 'The speaker explain the issue clear and logic.', 'The speaker explaining the issue clearly and logical.', 'The speaker explained the issue clear and logical.'],
+              answerText: 'The speaker explained the issue clearly and logically.',
+            },
+            {
+              text: 'Choose the best way to complete the sentence: The committee ______ the report before making its decision.',
+              options: ['studied', 'studies', 'study', 'studying'],
+              answerText: 'studied',
+            },
+            {
+              text: 'Which sentence shows the most effective formal writing style?',
+              options: ['The findings are presented clearly and concisely.', 'The findings was presented clear and concise.', 'The findings are present clear and concise.', 'The findings presenting clear and concise.'],
+              answerText: 'The findings are presented clearly and concisely.',
+            },
+          ]
+        : [
+            {
+              text: 'Choose the grammatically correct sentence in this school report context.',
+              options: ['The pupils were reading when the teacher arrived.', 'The pupils was reading when the teacher arrived.', 'The pupils are reading when the teacher arrived.', 'The pupils read when the teacher arrive.'],
+              answerText: 'The pupils were reading when the teacher arrived.',
+            },
+            {
+              text: 'Which sentence is most appropriate for a formal debate introduction?',
+              options: ['The speaker explained the issue clearly and logically.', 'The speaker explain the issue clear and logic.', 'The speaker explaining the issue clearly and logical.', 'The speaker explained the issue clear and logical.'],
+              answerText: 'The speaker explained the issue clearly and logically.',
+            },
+            {
+              text: 'Choose the best way to complete the sentence: The committee ______ the report before making its decision.',
+              options: ['studied', 'studies', 'study', 'studying'],
+              answerText: 'studied',
+            },
+          ];
     if (useShort && roundIndex > 0) {
       const item = pickTemplate(templates);
       return makeShort(`In one sentence, explain the main idea of this prompt: ${item.text}`, 'A clear and complete answer is expected.');
@@ -98,23 +137,51 @@ function buildRoomQuestion(room, roundIndex = 0, questionIndex = 0) {
   }
 
   if (isMath) {
-    const templates = [
-      { text: 'What is 12 × 8?', options: ['96', '86', '98', '88'], answerText: '96' },
-      { text: 'What is 18 ÷ 3?', options: ['6', '5', '7', '8'], answerText: '6' },
-      { text: 'Solve 2x + 5 = 15.', options: ['5', '4', '10', '-5'], answerText: '5' },
-      { text: 'What is 25% of 80?', options: ['20', '30', '40', '10'], answerText: '20' },
-    ];
+    const templates = levelKey === 'primary'
+      ? [
+          { text: 'At a school fair, a teacher puts 4 pencils into each of 5 pencil cases. How many pencils are used altogether?', options: ['20', '18', '22', '24'], answerText: '20' },
+          { text: 'The school library arranges 18 storybooks equally on 3 shelves. How many books are on each shelf?', options: ['6', '5', '7', '8'], answerText: '6' },
+          { text: 'A bus carries 6 children in each row and there are 3 rows. How many children are seated?', options: ['18', '15', '20', '21'], answerText: '18' },
+          { text: 'A gardener plants 25 seedlings in the morning and 14 more in the afternoon. How many seedlings are planted in total?', options: ['39', '40', '41', '38'], answerText: '39' },
+        ]
+      : levelKey === 'shs'
+        ? [
+            { text: 'A school transport company charges a fixed booking fee of 5 cedis plus 2 cedis per kilometre. If a trip is 4 km, what is the total cost?', options: ['13', '12', '14', '15'], answerText: '13' },
+            { text: 'A school garden uses 25% of an 80-litre irrigation tank on Monday. How many litres are used?', options: ['20', '30', '40', '10'], answerText: '20' },
+            { text: 'A student models the number of books borrowed each week with the rule y = 3x + 2, where x is the number of weeks. How many books are borrowed in week 4?', options: ['12', '14', '16', '10'], answerText: '14' },
+            { text: 'A school project budget increases by 20% from 80 cedis. What is the new budget?', options: ['96', '88', '100', '92'], answerText: '96' },
+          ]
+        : [
+            { text: 'A school canteen orders 12 trays of bottled water and each tray holds 8 bottles. How many bottles are ordered in total?', options: ['96', '86', '98', '88'], answerText: '96' },
+            { text: 'The school theatre club shares 96 tickets equally among 8 classes. How many tickets does each class receive?', options: ['12', '10', '14', '16'], answerText: '12' },
+            { text: 'A field trip costs 18 cedis for 3 buses. If the cost is shared equally, how much does each bus pay?', options: ['6', '5', '7', '8'], answerText: '6' },
+            { text: 'During a science fair, 25% of 80 students volunteer to help. How many students volunteer?', options: ['20', '30', '40', '10'], answerText: '20' },
+          ];
     const item = pickTemplate(templates);
     return makeMcq(item.text, item.options, item.answerText);
   }
 
   if (isScience) {
-    const templates = [
-      { text: 'Which gas do plants take in to make food during photosynthesis?', options: ['Oxygen', 'Carbon dioxide', 'Nitrogen', 'Hydrogen'], answerText: 'Carbon dioxide' },
-      { text: 'Which part of the human body pumps blood around the body?', options: ['Liver', 'Brain', 'Heart', 'Lungs'], answerText: 'Heart' },
-      { text: 'Water freezes at 0 degrees on which temperature scale?', options: ['Fahrenheit', 'Celsius', 'Kelvin', 'Rankine'], answerText: 'Celsius' },
-      { text: 'What process allows green plants to make food using sunlight?', options: ['Respiration', 'Photosynthesis', 'Digestion', 'Evaporation'], answerText: 'Photosynthesis' },
-    ];
+    const templates = levelKey === 'primary'
+      ? [
+          { text: 'Which part of a plant takes in water from the soil?', options: ['Leaf', 'Root', 'Flower', 'Stem'], answerText: 'Root' },
+          { text: 'What do we breathe in from the air?', options: ['Oxygen', 'Carbon dioxide', 'Smoke', 'Dust'], answerText: 'Oxygen' },
+          { text: 'Which body part helps us think?', options: ['Heart', 'Brain', 'Lungs', 'Stomach'], answerText: 'Brain' },
+          { text: 'What do plants need from the sun to make food?', options: ['Light', 'Water only', 'Soil only', 'Shadow'], answerText: 'Light' },
+        ]
+      : levelKey === 'shs'
+        ? [
+            { text: 'What process allows green plants to make food using sunlight?', options: ['Respiration', 'Photosynthesis', 'Digestion', 'Evaporation'], answerText: 'Photosynthesis' },
+            { text: 'Water freezes at 0 degrees on which temperature scale?', options: ['Fahrenheit', 'Celsius', 'Kelvin', 'Rankine'], answerText: 'Celsius' },
+            { text: 'Which gas do plants take in to make food during photosynthesis?', options: ['Oxygen', 'Carbon dioxide', 'Nitrogen', 'Hydrogen'], answerText: 'Carbon dioxide' },
+            { text: 'Which part of the human body pumps blood around the body?', options: ['Liver', 'Brain', 'Heart', 'Lungs'], answerText: 'Heart' },
+          ]
+        : [
+            { text: 'Which gas do plants take in to make food during photosynthesis?', options: ['Oxygen', 'Carbon dioxide', 'Nitrogen', 'Hydrogen'], answerText: 'Carbon dioxide' },
+            { text: 'Which part of the human body pumps blood around the body?', options: ['Liver', 'Brain', 'Heart', 'Lungs'], answerText: 'Heart' },
+            { text: 'Water freezes at 0 degrees on which temperature scale?', options: ['Fahrenheit', 'Celsius', 'Kelvin', 'Rankine'], answerText: 'Celsius' },
+            { text: 'What process allows green plants to make food using sunlight?', options: ['Respiration', 'Photosynthesis', 'Digestion', 'Evaporation'], answerText: 'Photosynthesis' },
+          ];
     const item = pickTemplate(templates);
     if (useShort && roundIndex > 0) {
       return makeShort(`Explain one reason why a ${item.answerText.toLowerCase()} is important in everyday life.`, 'A clear scientific explanation is expected.');
@@ -174,11 +241,23 @@ function buildRoomQuestion(room, roundIndex = 0, questionIndex = 0) {
   }
 
   if (isGeneral) {
-    const templates = [
-      { text: 'Which habit helps you learn faster and stay organised?', options: ['Planning your study time', 'Ignoring feedback', 'Procrastinating', 'Skipping revision'], answerText: 'Planning your study time' },
-      { text: 'What is a healthy way to respond when you feel challenged by a difficult question?', options: ['Give up quickly', 'Ask for help and keep trying', 'Copy a friend', 'Ignore it'], answerText: 'Ask for help and keep trying' },
-      { text: 'Which action is a good way to support your classmates?', options: ['Share ideas kindly', 'Mock mistakes', 'Take all the credit', 'Ignore their needs'], answerText: 'Share ideas kindly' },
-    ];
+    const templates = levelKey === 'primary'
+      ? [
+          { text: 'Which habit helps you learn faster and stay organised?', options: ['Planning your study time', 'Ignoring feedback', 'Procrastinating', 'Skipping revision'], answerText: 'Planning your study time' },
+          { text: 'What is a healthy way to respond when you feel challenged by a difficult question?', options: ['Give up quickly', 'Ask for help and keep trying', 'Copy a friend', 'Ignore it'], answerText: 'Ask for help and keep trying' },
+          { text: 'Which action is a good way to support your classmates?', options: ['Share ideas kindly', 'Mock mistakes', 'Take all the credit', 'Ignore their needs'], answerText: 'Share ideas kindly' },
+        ]
+      : levelKey === 'shs'
+        ? [
+            { text: 'Which study habit improves long-term understanding most effectively?', options: ['Reading passively', 'Reviewing notes regularly', 'Copying answers', 'Ignoring feedback'], answerText: 'Reviewing notes regularly' },
+            { text: 'What is the best response when a classmate disagrees with your idea respectfully?', options: ['Argue loudly', 'Listen and discuss calmly', 'Ignore them', 'Mock them'], answerText: 'Listen and discuss calmly' },
+            { text: 'Which action shows strong leadership in a group project?', options: ['Taking charge and listening', 'Doing everything alone', 'Leaving work for others', 'Ignoring deadlines'], answerText: 'Taking charge and listening' },
+          ]
+        : [
+            { text: 'Which habit helps you learn faster and stay organised?', options: ['Planning your study time', 'Ignoring feedback', 'Procrastinating', 'Skipping revision'], answerText: 'Planning your study time' },
+            { text: 'What is a healthy way to respond when you feel challenged by a difficult question?', options: ['Give up quickly', 'Ask for help and keep trying', 'Copy a friend', 'Ignore it'], answerText: 'Ask for help and keep trying' },
+            { text: 'Which action is a good way to support your classmates?', options: ['Share ideas kindly', 'Mock mistakes', 'Take all the credit', 'Ignore their needs'], answerText: 'Share ideas kindly' },
+          ];
     const item = pickTemplate(templates);
     return makeMcq(item.text, item.options, item.answerText);
   }
@@ -249,19 +328,23 @@ function normalizeResponseText(value) {
   return String(value ?? '').trim().toLowerCase();
 }
 
-function buildQuizMessage(room, outcome = 'intro', answerText = '') {
+function buildQuizMessage(room, outcome = 'intro', answerText = '', playerName = '') {
   const base = room && room.settings ? room.settings.subject : 'the quiz';
+  const contestantName = String(playerName || '').trim() || 'the contestant';
   if (outcome === 'correct') {
-    return `Aria says: excellent work! That was the best answer for ${base}.`;
+    return `Aria, the moderator, awards 10 marks to ${contestantName} for the correct answer.`;
   }
   if (outcome === 'incorrect') {
-    const answer = answerText ? ` The best answer was ${answerText}.` : '';
-    return `Aria says: close one. ${answer} Keep your focus for the next question.`;
+    const answer = answerText ? ` The correct answer is ${answerText}.` : '';
+    return `Aria, the moderator, says ${contestantName} missed that one.${answer} Aria will explain it clearly and keep the quiz moving.`;
   }
   if (outcome === 'skip') {
-    return 'Aria says: moving on quickly so the pace stays lively.';
+    return 'Aria, the moderator, moves the quiz forward so the pace stays lively.';
   }
-  return `Aria says: welcome to ${base}. Choose the best answer or type your response.`;
+  if (outcome === 'question') {
+    return `Aria, the moderator, invites ${contestantName} to answer. Aria reads the question and the options clearly.`;
+  }
+  return `Aria, the moderator, welcomes everyone to ${base}. Aria will read each question and keep the scoreboard visible.`;
 }
 
 function createRoomSnapshot(room) {
@@ -319,10 +402,11 @@ function advanceRoomQuestion(room) {
   room.ownerId = room.hostId;
   setQuestionDeadline(room, room.settings?.seconds);
   room.question = buildRoomQuestion(room, room.round, room.qInRound);
+  const currentPlayer = Array.isArray(room.players) ? room.players.find((player) => player.id === room.ownerId) || room.players[0] : null;
   room.qm = {
     id: `qm-${room.code}-${Date.now()}`,
     mood: 'sky',
-    text: 'Aria is ready. Choose the best answer or type your response.',
+    text: buildQuizMessage(room, 'question', '', currentPlayer?.name || '', room.question?.text || ''),
   };
 }
 
@@ -391,7 +475,7 @@ export function buildLocalBackendResponse(action, body = {}) {
         qm: {
           id: `qm-${roomCode}-${Date.now()}`,
           mood: 'sky',
-          text: 'Aria is ready. Invite your players and start the quiz when you are ready.',
+          text: buildQuizMessage({ settings: getDefaultSettings(safeBody.settings) }, 'intro'),
         },
       };
       ROOM_STORE.set(roomCode, room);
@@ -432,7 +516,7 @@ export function buildLocalBackendResponse(action, body = {}) {
       room.qm = {
         id: `qm-${room.code}-${Date.now()}`,
         mood: 'sky',
-        text: 'Aria is hosting. Choose the best answer or type your response.',
+        text: buildQuizMessage(room, 'question', '', room.players?.[0]?.name || '', room.question?.text || ''),
       };
       room.serverNow = Date.now();
       return createRoomSnapshot(room);
@@ -491,9 +575,7 @@ export function buildLocalBackendResponse(action, body = {}) {
       room.qm = {
         id: `qm-${room.code}-${Date.now()}`,
         mood: isCorrect ? 'mint' : 'coral',
-        text: isCorrect
-          ? `Aria says: excellent work! ${player.name || 'Player'} chose the correct answer.`
-          : `Aria says: the best answer was ${answerText || 'the correct choice'}.`,
+        text: buildQuizMessage(room, isCorrect ? 'correct' : 'incorrect', answerText, player.name),
       };
       room.serverNow = Date.now();
       return createRoomSnapshot(room);

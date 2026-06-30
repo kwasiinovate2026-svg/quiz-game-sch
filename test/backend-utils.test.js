@@ -54,7 +54,27 @@ test('answering a correct multiple-choice response reveals the result and awards
   assert.equal(answered.revealed, true);
   assert.equal(answered.ownResult, 'correct');
   assert.ok(answered.players.some((player) => player.id === 'host-1' && player.score > 0));
-  assert.match(answered.qm.text, /correct|nice/i);
+  assert.match(answered.qm.text, /moderator|awards|marks/i);
+  assert.match(answered.qm.text, /Alice/i);
+});
+
+test('primary mathematics prompts use context-rich scenario wording', () => {
+  const created = buildLocalBackendResponse('create', { playerId: 'host-1', name: 'Alice', settings: { level: 'Primary', subject: 'Mathematics' } });
+  const started = buildLocalBackendResponse('start', { code: created.code, playerId: 'host-1', name: 'Alice' });
+
+  assert.match(started.question.text, /school|classroom|library|market|bus|pencils|books|trip|garden|cans|teacher/i);
+  assert.doesNotMatch(started.question.text, /^what is [0-9]/i);
+});
+
+test('incorrect answers are explained with the correct option and moderator narration', () => {
+  const created = buildLocalBackendResponse('create', { playerId: 'host-1', name: 'Alice', settings: { level: 'JHS', subject: 'Mathematics' } });
+  const started = buildLocalBackendResponse('start', { code: created.code, playerId: 'host-1', name: 'Alice' });
+  const answered = buildLocalBackendResponse('answer', { code: created.code, playerId: 'host-1', choice: Number(started.question.answerIndex ?? 0) === 0 ? 1 : 0 });
+
+  assert.equal(answered.ownResult, 'incorrect');
+  assert.match(answered.qm.text, /moderator/i);
+  assert.match(answered.qm.text, /correct answer/i);
+  assert.match(answered.qm.text, /Alice/i);
 });
 
 test('answer reveals expose automatic turn advance information', () => {

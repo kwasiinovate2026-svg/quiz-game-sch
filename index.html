@@ -329,12 +329,30 @@ function conciseSpeech(text){
     ['Take your time', 'Go ahead'],
   ];
   replacements.forEach(([find,replace])=>{s=s.replace(new RegExp(find,'gi'),replace);});
-  const parts=s.match(/[^.!?]+[.!?]*/g)||[s];
-  if(parts.length>2) s=parts.slice(0,2).join(' ').trim();
-  if(s.length>220) s=s.slice(0,220).replace(/\s+\S*$/,'')+'...';
+  if(s.length>800) s=s.slice(0,800).replace(/\s+\S*$/,'')+'...';
   return s;
 }
 function loadVoices(){try{const vs=speechSynthesis.getVoices()||[];const english=vs.filter(v=>/^en/i.test(v.lang));const pick=english.find(v=>v.localService&&/^en/i.test(v.lang))||english.find(v=>v.default&&/^en/i.test(v.lang))||english[0]||vs.find(v=>v.default)||vs[0]||null;TTS.voice=pick;}catch(e){TTS.voice=null;}}
+function getContestantName(m){
+  const players=Array.isArray(m&&m.players)?m.players:[];
+  const currentPlayer=players.find((player)=>player&&player.id===((m&&m.ownerId)||''))||players.find((player)=>player&&player.id===((m&&m.hostId)||''))||players[0]||null;
+  return currentPlayer && currentPlayer.name ? String(currentPlayer.name).trim() : 'the contestant';
+}
+function buildModeratorSpeech(m){
+  const qmText=(m&&m.qm&&m.qm.text)?String(m.qm.text):'';
+  const q=(m&&m.question&&typeof m.question==='object')?m.question:null;
+  const contestantName=getContestantName(m);
+  if((m&&m.stage==='answering' || m&&m.stage==='bonus') && q){
+    const questionText=q.text?String(q.text).trim():'';
+    const options=Array.isArray(q.options)?q.options.filter((value)=>String(value||'').trim()):[];
+    const optionText=options.length?` The options are. ${options.map((value,index)=>`option ${'ABCD'[index]} ${value}`).join('. ')}`:'';
+    return `Aria, the moderator, invites ${contestantName}. Aria reads the question. ${questionText}${optionText}`;
+  }
+  if((m&&m.stage==='reveal') && qmText){
+    return qmText;
+  }
+  return qmText || 'Aria, the moderator, welcomes everyone to the quiz.';
+}
 function speak(t){const text=conciseSpeech(t);if(!TTS.on||!text||typeof speechSynthesis==='undefined')return;try{speechSynthesis.cancel();if(!TTS.voice)loadVoices();const u=new SpeechSynthesisUtterance(text);u.rate=0.95;u.pitch=1.0;u.volume=1; if(TTS.voice){u.voice=TTS.voice; if(TTS.voice.lang)u.lang=TTS.voice.lang;} u.onstart=()=>document.querySelectorAll('.qmorb').forEach(o=>o.classList.add('speaking'));u.onend=()=>document.querySelectorAll('.qmorb').forEach(o=>o.classList.remove('speaking'));try{speechSynthesis.resume();}catch(e){}speechSynthesis.speak(u);}catch(e){}}
 function primeAudio(){if(TTS.primed)return;TTS.primed=true;try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);loadVoices();}catch(e){}}
 if(typeof speechSynthesis!=='undefined'){try{speechSynthesis.onvoiceschanged=loadVoices;}catch(e){}}
@@ -563,7 +581,7 @@ function applySnap(m){
   if(targetScreen!==previousScreen){S.screen=targetScreen;}
   const sig=snapSignature(m);
   const shouldRender=previousScreen!==targetScreen || S.lastSnapSignature!==sig;
-  if(m.qm&&m.qm.id!==TTS.lastId){TTS.lastId=m.qm.id;speak(m.qm.text);if(m.stage==='reveal'&&m.ownResult==='correct')fireConfetti();if(m.bonusWinnerId)fireConfetti();}
+  if(m.qm&&m.qm.id!==TTS.lastId){TTS.lastId=m.qm.id;speak(buildModeratorSpeech(m));if(m.stage==='reveal'&&m.ownResult==='correct')fireConfetti();if(m.bonusWinnerId)fireConfetti();}
   if(shouldRender){S.lastSnapSignature=sig;render();}
   if(m.stage==='reveal' && m.phase==='playing'){
     clearRevealAdvance();
@@ -672,7 +690,7 @@ function viewHome(){
   <div class="home">
     <div class="hsl"></div>
     <div class="horb-wrap"><div class="horb-glow"></div><div class="horb"></div></div>
-    <div class="aria-tag">Aria · your quiz master</div>
+    <div class="aria-tag">Aria · your moderator</div>
     <p class="eyebrow">Live quiz · Primary · JHS · SHS</p>
     <h1 class="htitle">Turn your classroom into<br><span class="hl">a live quiz arena.</span></h1>
     <p class="hsub">Create a room in seconds, invite friends, and let Aria guide a fast, fair, NaCCA-aligned quiz from any phone.</p>
@@ -794,7 +812,7 @@ function viewLobby(){const m=S.snap;const code=m?m.code:lastRoom();const players
       </div>
       ${m?`<p class="muted setline">${esc(m.subjLabel)} · ${m.settings.rounds} rounds × ${m.settings.perRound} · ${m.settings.seconds}s · bonus steals</p>`:`<p class="muted setline">Connecting…</p>`}
     </div>
-    <div class="qmwrap"><div class="qmorb"></div><div class="qmbubble sky"><div class="who">Aria · quiz master</div><div class="txt">Everyone gets their own questions, and you can all see each one. Miss yours and a rival can steal the bonus. Sound on for the full show!</div></div></div>
+    <div class="qmwrap"><div class="qmorb"></div><div class="qmbubble sky"><div class="who">Aria · moderator</div><div class="txt">Aria is the moderator. Everyone gets their own question, and the score stays visible throughout the round.</div></div></div>
     <div class="panel">
       <div class="lobbyhead"><h2 style="font-size:17px;margin:0">In the room <span class="faint">(${players.length})</span></h2>${isHost?'<span class="pill">★ Host</span>':''}</div>
       <div class="players" style="margin-top:12px">${players.map(p=>playerRow(p,m)).join('')||'<p class="muted">No one yet…</p>'}</div>
@@ -808,7 +826,7 @@ function playerRow(p,m){const isMe=p.id===ME.id,isHost=m&&p.id===m.hostId;let ta
 function viewGame(){const m=S.snap;if(!m)return viewLobby();
   const isOwner=m.ownerId===ME.id;const owner=(m.players.find(p=>p.id===m.ownerId)||{}).name||'…';
   const bonus=m.stage==='bonus';const meLocked=(m.bonusLockedIds||[]).includes(ME.id);
-  const bubble=`<div class="qmwrap"><div class="qmorb"></div><div class="qmbubble ${m.qm.mood||'sky'}"><div class="who"><span class="live"></span>Aria · quiz master</div><div class="txt">${esc(m.qm.text||'…')}</div></div></div>`;
+  const bubble=`<div class="qmwrap"><div class="qmorb"></div><div class="qmbubble ${m.qm.mood||'sky'}"><div class="who"><span class="live"></span>Aria · moderator</div><div class="txt">${esc(m.qm.text||'…')}</div></div></div>`;
   if(m.stage==='intro'||m.stage==='roundIntro'||m.stage==='roundEnd'){
     const ic=m.stage==='intro'?'🎙️':m.stage==='roundEnd'?'🏁':'▶️';const h=m.stage==='intro'?'Get ready!':m.stage==='roundEnd'?'Round '+(m.round+1)+' done':'Round '+(m.round+1)+' of '+m.settings.rounds;
     return topbar(`<button class="iconbtn" data-leave="1">✕</button>`)+`<div class="stage"><div class="spot"></div>${bubble}<div class="pass"><div class="ic">${ic}</div><h3>${h}</h3><p class="muted">${esc(m.subjLabel)}</p></div>${scoreboard(m)}</div>`;}
