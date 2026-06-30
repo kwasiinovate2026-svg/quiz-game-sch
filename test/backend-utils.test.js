@@ -67,6 +67,18 @@ test('answer reveals expose automatic turn advance information', () => {
   assert.ok(Number(answered.autoAdvanceMs) >= 3000);
 });
 
+test('starts each question with a deadline based on the configured seconds', () => {
+  const created = buildLocalBackendResponse('create', {
+    playerId: 'host-1',
+    name: 'Alice',
+    settings: { level: 'JHS', subject: 'Mathematics', seconds: 30 },
+  });
+  const started = buildLocalBackendResponse('start', { code: created.code, playerId: 'host-1', name: 'Alice' });
+
+  assert.ok(Number(started.deadline) > Date.now());
+  assert.ok(Number(started.deadline) <= Date.now() + 31000);
+});
+
 test('skip advances the room and ends the quiz after the final question', () => {
   const created = buildLocalBackendResponse('create', {
     playerId: 'host-1',

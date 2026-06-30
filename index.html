@@ -516,9 +516,13 @@ function buildQuestionBank(level, subject, rounds, perRound, roomCode=''){
         }
       }
       else{
-        if(roundIndex===0){const parts=['Roots','Leaves','Stem','Flowers'];pool.push({type:'mcq',text:`In a biology lesson ${context}, which structure in a flowering plant absorbs water and mineral ions from the soil?`,options:parts,answerIndex:0,answerText:'Roots',subj:'Science',difficulty:'Level 1'});}
-        else if(roundIndex===1){const parts=['Oxygen','Nitrogen','Carbon dioxide','Hydrogen'];pool.push({type:'mcq',text:`During a respiration experiment ${context}, which gas is needed for aerobic respiration?`,options:parts,answerIndex:0,answerText:'Oxygen',subj:'Science',difficulty:'Level 2'});}
-        else{pool.push({type:'short',text:`In a practical investigation ${context}, explain one reason why a metal spoon feels colder than a wooden spoon at room temperature.`,answer:'Metals conduct heat away from the hand more quickly.',subj:'Science',difficulty:'Scenario'});}
+        const generalPool=[
+          {type:'mcq',text:`In a school project ${context}, which habit helps you learn and stay organised?`,options:['Plan your study time','Ignore feedback','Wait until the last minute','Copy a friend'],answerIndex:0,answerText:'Plan your study time',subj:'General Knowledge',difficulty:'Level 1'},
+          {type:'mcq',text:`Which action is a good way to support classmates during group work?`,options:['Share ideas kindly','Take all the credit','Ignore the team','Rush without checking'],answerIndex:0,answerText:'Share ideas kindly',subj:'General Knowledge',difficulty:'Level 1'},
+          {type:'short',text:`In one sentence, explain one healthy habit that helps you stay focused during revision.`,answer:'A clear routine and regular practice help maintain focus.',subj:'General Knowledge',difficulty:'Scenario'}
+        ];
+        const item=generalPool[(i+roundIndex)%generalPool.length];
+        pool.push(item);
       }
     }
     list.push(pool);
@@ -605,7 +609,9 @@ async function doShare(){const c=lastRoom();if(!c)return;
 
 /* ---- countdown ---- */
 function startCountdown(){clearInterval(countdownT);const m=S.snap;if(!m||!['answering','bonus'].includes(m.stage))return;
-  const paint=()=>{const el=document.getElementById('qtimer');if(!el)return;const rem=Math.max(0,Math.ceil((m.deadline-(Date.now()-clockOffset))/1000));el.innerHTML='<span class="ring"></span>'+rem+'s';el.className='qtimer'+(rem<=10?' low':'');if(rem<=0)clearInterval(countdownT);};
+  const deadline=Number(m.deadline||0);
+  const fallbackSeconds=Number(m.settings&&m.settings.seconds?m.settings.seconds:45);
+  const paint=()=>{const el=document.getElementById('qtimer');if(!el)return;const serverNow=Date.now()-clockOffset;const rem=deadline?Math.max(0,Math.ceil((deadline-serverNow)/1000)):Math.max(0,fallbackSeconds);el.innerHTML='<span class="ring"></span>'+rem+'s';el.className='qtimer'+(rem<=10?' low':'');if(rem<=0){clearInterval(countdownT);if(S.snap&&['answering','bonus'].includes(S.snap.stage))doSkip();}};
   paint();countdownT=setInterval(paint,250);}
 
 /* ============================================================ RENDER ============================================================ */

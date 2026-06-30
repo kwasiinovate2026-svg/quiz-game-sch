@@ -41,204 +41,146 @@ function buildRoomQuestion(room, roundIndex = 0, questionIndex = 0) {
   const baseSeed = (room && room.questionSeed ? room.questionSeed : generateRoomSeed(room && room.code)) + roundIndex * 97 + questionIndex * 11;
   const rng = createSeededRng(baseSeed);
   const subjectKey = subject.toLowerCase();
-  const isMath = subjectKey.includes('mathematics');
-  const isEnglish = subjectKey.includes('english') || subjectKey.includes('literature');
-  const isScience = subjectKey.includes('science') || subjectKey.includes('physics') || subjectKey.includes('chemistry') || subjectKey.includes('biology');
+  const isMath = subjectKey.includes('mathematics') || subjectKey.includes('numeracy');
+  const isEnglish = subjectKey.includes('english') || subjectKey.includes('literature') || subjectKey.includes('language');
+  const isScience = subjectKey.includes('science') || subjectKey.includes('physics') || subjectKey.includes('chemistry') || subjectKey.includes('biology') || subjectKey.includes('integrated');
   const isSocial = subjectKey.includes('social') || subjectKey.includes('history') || subjectKey.includes('government') || subjectKey.includes('geography') || subjectKey.includes('economics') || subjectKey.includes('our world') || subjectKey.includes('people');
-  const isComputing = subjectKey.includes('computing') || subjectKey.includes('ict');
+  const isComputing = subjectKey.includes('computing') || subjectKey.includes('ict') || subjectKey.includes('computer');
   const isFrench = subjectKey.includes('french');
-  const isRME = subjectKey.includes('religious') || subjectKey.includes('moral');
-  const isCareer = subjectKey.includes('career');
+  const isRME = subjectKey.includes('religious') || subjectKey.includes('moral') || subjectKey.includes('rme');
+  const isCareer = subjectKey.includes('career') || subjectKey.includes('technical') || subjectKey.includes('technology');
+  const isGeneral = !isMath && !isEnglish && !isScience && !isSocial && !isComputing && !isFrench && !isRME && !isCareer;
+
+  const makeMcq = (text, options, answerText) => ({
+    type: 'mcq',
+    text,
+    options,
+    answerIndex: Math.max(0, options.indexOf(answerText)),
+    answerText,
+    subj: subject,
+    difficulty: level,
+  });
+  const makeShort = (text, answerText) => ({
+    type: 'short',
+    text,
+    answer: answerText,
+    answerText,
+    subj: subject,
+    difficulty: level,
+  });
+  const pickTemplate = (templates) => templates[Math.abs((questionIndex + roundIndex + Math.floor(rng() * 10)) % templates.length)];
+  const useShort = (roundIndex + questionIndex + 1) % 4 === 0;
 
   if (isEnglish) {
-    const choices = [
-      'The pupils were reading when the teacher arrived.',
-      'The pupils was reading when the teacher arrived.',
-      'The pupils are reading when the teacher arrived.',
-      'The pupils read when the teacher arrive.',
+    const templates = [
+      {
+        text: 'Choose the grammatically correct sentence in this school report context.',
+        options: ['The pupils were reading when the teacher arrived.', 'The pupils was reading when the teacher arrived.', 'The pupils are reading when the teacher arrived.', 'The pupils read when the teacher arrive.'],
+        answerText: 'The pupils were reading when the teacher arrived.',
+      },
+      {
+        text: 'Which sentence is most appropriate for a formal debate introduction?',
+        options: ['The speaker explained the issue clearly and logically.', 'The speaker explain the issue clear and logic.', 'The speaker explaining the issue clearly and logical.', 'The speaker explained the issue clear and logical.'],
+        answerText: 'The speaker explained the issue clearly and logically.',
+      },
+      {
+        text: 'Choose the best way to complete the sentence: The committee ______ the report before making its decision.',
+        options: ['studied', 'studies', 'study', 'studying'],
+        answerText: 'studied',
+      },
     ];
-    const answer = choices[0];
-    const shuffled = [...choices].sort(() => rng() - 0.5);
-    return {
-      type: 'mcq',
-      text: 'Choose the grammatically correct sentence in this school report context.',
-      options: shuffled,
-      answerIndex: shuffled.indexOf(answer),
-      answerText: answer,
-      subj: subject,
-      difficulty: level,
-    };
+    if (useShort && roundIndex > 0) {
+      const item = pickTemplate(templates);
+      return makeShort(`In one sentence, explain the main idea of this prompt: ${item.text}`, 'A clear and complete answer is expected.');
+    }
+    const item = pickTemplate(templates);
+    return makeMcq(item.text, item.options, item.answerText);
   }
 
   if (isMath) {
-    const a = 2 + Math.floor(rng() * 9);
-    const b = 2 + Math.floor(rng() * 8);
-    const answer = a * b;
-    const options = [String(answer), String(answer + 1), String(answer - 1), String(answer + 2)];
-    return {
-      type: 'mcq',
-      text: `What is ${a} × ${b}?`,
-      options,
-      answerIndex: 0,
-      answerText: String(answer),
-      subj: subject,
-      difficulty: level,
-    };
+    const templates = [
+      { text: 'What is 12 × 8?', options: ['96', '86', '98', '88'], answerText: '96' },
+      { text: 'What is 18 ÷ 3?', options: ['6', '5', '7', '8'], answerText: '6' },
+      { text: 'Solve 2x + 5 = 15.', options: ['5', '4', '10', '-5'], answerText: '5' },
+      { text: 'What is 25% of 80?', options: ['20', '30', '40', '10'], answerText: '20' },
+    ];
+    const item = pickTemplate(templates);
+    return makeMcq(item.text, item.options, item.answerText);
   }
 
   if (isScience) {
-    const facts = [
-      {
-        text: 'Which gas do plants take in to make food during photosynthesis?',
-        options: ['Oxygen', 'Carbon dioxide', 'Nitrogen', 'Hydrogen'],
-        answer: 'Carbon dioxide',
-      },
-      {
-        text: 'Which part of the human body pumps blood around the body?',
-        options: ['Liver', 'Brain', 'Heart', 'Lungs'],
-        answer: 'Heart',
-      },
-      {
-        text: 'Water freezes at 0 degrees on which temperature scale?',
-        options: ['Fahrenheit', 'Celsius', 'Kelvin', 'Rankine'],
-        answer: 'Celsius',
-      },
+    const templates = [
+      { text: 'Which gas do plants take in to make food during photosynthesis?', options: ['Oxygen', 'Carbon dioxide', 'Nitrogen', 'Hydrogen'], answerText: 'Carbon dioxide' },
+      { text: 'Which part of the human body pumps blood around the body?', options: ['Liver', 'Brain', 'Heart', 'Lungs'], answerText: 'Heart' },
+      { text: 'Water freezes at 0 degrees on which temperature scale?', options: ['Fahrenheit', 'Celsius', 'Kelvin', 'Rankine'], answerText: 'Celsius' },
+      { text: 'What process allows green plants to make food using sunlight?', options: ['Respiration', 'Photosynthesis', 'Digestion', 'Evaporation'], answerText: 'Photosynthesis' },
     ];
-    const item = facts[questionIndex % facts.length];
-    return {
-      type: 'mcq',
-      text: item.text,
-      options: item.options,
-      answerIndex: item.options.indexOf(item.answer),
-      answerText: item.answer,
-      subj: subject,
-      difficulty: level,
-    };
+    const item = pickTemplate(templates);
+    if (useShort && roundIndex > 0) {
+      return makeShort(`Explain one reason why a ${item.answerText.toLowerCase()} is important in everyday life.`, 'A clear scientific explanation is expected.');
+    }
+    return makeMcq(item.text, item.options, item.answerText);
   }
 
   if (isSocial) {
-    const topics = [
-      {
-        text: 'Which regional organisation helps countries in West Africa cooperate on trade and security?',
-        options: ['United Nations', 'African Union', 'ECOWAS', 'ASEAN'],
-        answer: 'ECOWAS',
-      },
-      {
-        text: 'What is the main purpose of a national budget in a country?',
-        options: ['To collect taxes', 'To plan spending and revenue', 'To build schools only', 'To elect government officials'],
-        answer: 'To plan spending and revenue',
-      },
+    const templates = [
+      { text: 'Which regional organisation helps countries in West Africa cooperate on trade and security?', options: ['United Nations', 'African Union', 'ECOWAS', 'ASEAN'], answerText: 'ECOWAS' },
+      { text: 'What is the main purpose of a national budget in a country?', options: ['To collect taxes', 'To plan spending and revenue', 'To build schools only', 'To elect government officials'], answerText: 'To plan spending and revenue' },
+      { text: 'Which element is most important for a democratic election to be fair?', options: ['Secret ballot', 'Forced voting', 'No observers', 'No campaign'], answerText: 'Secret ballot' },
+      { text: 'What is the primary purpose of a map legend?', options: ['To show scale', 'To explain symbols', 'To measure distance', 'To show direction'], answerText: 'To explain symbols' },
     ];
-    const item = topics[questionIndex % topics.length];
-    return {
-      type: 'mcq',
-      text: item.text,
-      options: item.options,
-      answerIndex: item.options.indexOf(item.answer),
-      answerText: item.answer,
-      subj: subject,
-      difficulty: level,
-    };
+    const item = pickTemplate(templates);
+    return makeMcq(item.text, item.options, item.answerText);
   }
 
   if (isComputing) {
-    const choices = [
-      {
-        text: 'Which part of a computer manages hardware and software so programs can run?',
-        options: ['Keyboard', 'Operating system', 'Printer', 'Router'],
-        answer: 'Operating system',
-      },
-      {
-        text: 'A set of instructions a computer follows to solve a problem is called a',
-        options: ['Internet', 'Network', 'Database', 'Algorithm'],
-        answer: 'Algorithm',
-      },
+    const templates = [
+      { text: 'Which part of a computer manages hardware and software so programs can run?', options: ['Keyboard', 'Operating system', 'Printer', 'Router'], answerText: 'Operating system' },
+      { text: 'A set of instructions a computer follows to solve a problem is called a', options: ['Internet', 'Network', 'Database', 'Algorithm'], answerText: 'Algorithm' },
+      { text: 'Which of these is a safe online habit?', options: ['Sharing passwords', 'Using weak passwords', 'Ignoring updates', 'Keeping software updated'], answerText: 'Keeping software updated' },
     ];
-    const item = choices[questionIndex % choices.length];
-    return {
-      type: 'mcq',
-      text: item.text,
-      options: item.options,
-      answerIndex: item.options.indexOf(item.answer),
-      answerText: item.answer,
-      subj: subject,
-      difficulty: level,
-    };
+    const item = pickTemplate(templates);
+    return makeMcq(item.text, item.options, item.answerText);
   }
 
   if (isFrench) {
-    const choices = [
-      {
-        text: 'Which greeting is correct in French?',
-        options: ['Bonjour', 'Adiós', 'Grazie', 'Hello'],
-        answer: 'Bonjour',
-      },
-      {
-        text: 'Which word means “thank you” in French?',
-        options: ['Merci', 'Bitte', 'Gracias', 'Danke'],
-        answer: 'Merci',
-      },
+    const templates = [
+      { text: 'Which greeting is correct in French?', options: ['Bonjour', 'Adiós', 'Grazie', 'Hello'], answerText: 'Bonjour' },
+      { text: 'Which word means “thank you” in French?', options: ['Merci', 'Bitte', 'Gracias', 'Danke'], answerText: 'Merci' },
+      { text: 'Which phrase means “good morning” in French?', options: ['Bonne nuit', 'Bonjour', 'Au revoir', 'Merci'], answerText: 'Bonjour' },
     ];
-    const item = choices[questionIndex % choices.length];
-    return {
-      type: 'mcq',
-      text: item.text,
-      options: item.options,
-      answerIndex: item.options.indexOf(item.answer),
-      answerText: item.answer,
-      subj: subject,
-      difficulty: level,
-    };
+    const item = pickTemplate(templates);
+    return makeMcq(item.text, item.options, item.answerText);
   }
 
   if (isRME) {
-    const choices = [
-      {
-        text: 'Which action shows respect for other people in the classroom?',
-        options: ['Sharing materials', 'Shouting loudly', 'Ignoring the teacher', 'Skipping lessons'],
-        answer: 'Sharing materials',
-      },
-      {
-        text: 'Why is honesty important in school life?',
-        options: ['It creates confusion', 'It builds trust', 'It wastes time', 'It causes problems'],
-        answer: 'It builds trust',
-      },
+    const templates = [
+      { text: 'Which action shows respect for other people in the classroom?', options: ['Sharing materials', 'Shouting loudly', 'Ignoring the teacher', 'Skipping lessons'], answerText: 'Sharing materials' },
+      { text: 'Why is honesty important in school life?', options: ['It creates confusion', 'It builds trust', 'It wastes time', 'It causes problems'], answerText: 'It builds trust' },
+      { text: 'Which value helps people live peacefully together?', options: ['Violence', 'Kindness', 'Dishonesty', 'Rudeness'], answerText: 'Kindness' },
     ];
-    const item = choices[questionIndex % choices.length];
-    return {
-      type: 'mcq',
-      text: item.text,
-      options: item.options,
-      answerIndex: item.options.indexOf(item.answer),
-      answerText: item.answer,
-      subj: subject,
-      difficulty: level,
-    };
+    const item = pickTemplate(templates);
+    return makeMcq(item.text, item.options, item.answerText);
   }
 
   if (isCareer) {
-    const choices = [
-      {
-        text: 'Which skill is most useful when working in a team?',
-        options: ['Listening', 'Sleeping', 'Arguing', 'Ignoring others'],
-        answer: 'Listening',
-      },
-      {
-        text: 'What should you do if you do not understand an instruction at work?',
-        options: ['Ask for clarification', 'Ignore it', 'Do something else', 'Wait silently'],
-        answer: 'Ask for clarification',
-      },
+    const templates = [
+      { text: 'Which skill is most useful when working in a team?', options: ['Listening', 'Sleeping', 'Arguing', 'Ignoring others'], answerText: 'Listening' },
+      { text: 'What should you do if you do not understand an instruction at work?', options: ['Ask for clarification', 'Ignore it', 'Do something else', 'Wait silently'], answerText: 'Ask for clarification' },
+      { text: 'Which habit helps you become more productive at school?', options: ['Procrastinating', 'Planning your tasks', 'Avoiding questions', 'Working late without rest'], answerText: 'Planning your tasks' },
     ];
-    const item = choices[questionIndex % choices.length];
-    return {
-      type: 'mcq',
-      text: item.text,
-      options: item.options,
-      answerIndex: item.options.indexOf(item.answer),
-      answerText: item.answer,
-      subj: subject,
-      difficulty: level,
-    };
+    const item = pickTemplate(templates);
+    return makeMcq(item.text, item.options, item.answerText);
+  }
+
+  if (isGeneral) {
+    const templates = [
+      { text: 'Which habit helps you learn faster and stay organised?', options: ['Planning your study time', 'Ignoring feedback', 'Procrastinating', 'Skipping revision'], answerText: 'Planning your study time' },
+      { text: 'What is a healthy way to respond when you feel challenged by a difficult question?', options: ['Give up quickly', 'Ask for help and keep trying', 'Copy a friend', 'Ignore it'], answerText: 'Ask for help and keep trying' },
+      { text: 'Which action is a good way to support your classmates?', options: ['Share ideas kindly', 'Mock mistakes', 'Take all the credit', 'Ignore their needs'], answerText: 'Share ideas kindly' },
+    ];
+    const item = pickTemplate(templates);
+    return makeMcq(item.text, item.options, item.answerText);
   }
 
   const first = 2 + Math.floor(rng() * 9);
@@ -250,15 +192,7 @@ function buildRoomQuestion(room, roundIndex = 0, questionIndex = 0) {
     options.push(String(Number(answer) + options.length));
   }
 
-  return {
-    type: 'mcq',
-    text: `What is ${first} × ${second}?`,
-    options,
-    answerIndex: options.indexOf(String(answer)),
-    answerText: String(answer),
-    subj: subject,
-    difficulty: level,
-  };
+  return makeMcq(`What is ${first} × ${second}?`, options, String(answer));
 }
 
 function getDefaultSettings(settings = {}) {
@@ -277,6 +211,14 @@ function clearAutoAdvance(room) {
   room.autoAdvance = false;
   room.autoAdvanceMs = 0;
   room.autoAdvanceAt = null;
+}
+
+function setQuestionDeadline(room, seconds = null) {
+  const configuredSeconds = Number(seconds ?? room?.settings?.seconds ?? 45) || 45;
+  const safeSeconds = Math.max(5, Math.min(180, configuredSeconds));
+  room.deadline = Date.now() + safeSeconds * 1000;
+  room.secondsRemaining = safeSeconds;
+  return room.deadline;
 }
 
 function scheduleAutoAdvance(room, ms = 4000) {
@@ -345,6 +287,7 @@ function createRoomSnapshot(room) {
     bonusWinnerId: room.bonusWinnerId,
     autoAdvance: Boolean(room.autoAdvance),
     autoAdvanceMs: Number(room.autoAdvanceMs || 0),
+    deadline: room.deadline || null,
   };
 }
 
@@ -374,6 +317,7 @@ function advanceRoomQuestion(room) {
   room.correctIndex = null;
   room.ownResult = null;
   room.ownerId = room.hostId;
+  setQuestionDeadline(room, room.settings?.seconds);
   room.question = buildRoomQuestion(room, room.round, room.qInRound);
   room.qm = {
     id: `qm-${room.code}-${Date.now()}`,
@@ -483,6 +427,7 @@ export function buildLocalBackendResponse(action, body = {}) {
       room.ownResult = null;
       clearAutoAdvance(room);
       room.questionSeed = room.questionSeed || generateRoomSeed(room.code);
+      setQuestionDeadline(room, room.settings?.seconds);
       room.question = buildRoomQuestion(room, room.round, room.qInRound);
       room.qm = {
         id: `qm-${room.code}-${Date.now()}`,
